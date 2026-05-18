@@ -172,7 +172,11 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
       return
     }
 
-    // Stop mic immediately — before the API call — so Amy's voice isn't captured
+    // Set ref synchronously BEFORE stopping recognition so that onend and
+    // onresult both see isSpeaking=true and won't restart the mic or process
+    // captured audio as a user message. React state (setIsSpeaking) is async
+    // and would be too late — the ref is what the callbacks actually check.
+    isSpeakingRef.current = true
     recognitionRunningRef.current = false
     recognitionRef.current?.stop()
     setIsListening(false)
@@ -184,6 +188,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
     } catch {
       toast.error("Couldn't play Amy's voice. Check the ElevenLabs voice settings.")
     } finally {
+      isSpeakingRef.current = false
       setIsSpeaking(false)
     }
   }, [user?.subscription_tier])
