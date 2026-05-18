@@ -13,6 +13,7 @@ interface ChatState {
   addMessage: (msg: ChatMessage) => void
   appendStreamToken: (token: string) => void
   finalizeStream: (fullResponse: string) => void
+  clearStream: () => void
   setStreaming: (v: boolean) => void
   setConnected: (v: boolean) => void
   setConversations: (convos: ConversationSummary[]) => void
@@ -53,6 +54,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
       isStreaming: false,
     }))
   },
+
+  clearStream: () => set({ streamingContent: '', isStreaming: false }),
 
   setStreaming: (v) => set({ isStreaming: v }),
   setConnected: (v) => set({ isConnected: v }),

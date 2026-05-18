@@ -106,7 +106,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
   const {
     messages, streamingContent, isStreaming, isConnected,
     currentConversationId, setConversationId, addMessage, appendStreamToken,
-    finalizeStream, setConnected, clearMessages,
+    finalizeStream, clearStream, setConnected, clearMessages,
   } = useChatStore()
 
   const [input, setInput] = useState('')
@@ -123,6 +123,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
   const [giftLoading, setGiftLoading] = useState<string | null>(null)
   const [messagesHydrated, setMessagesHydrated] = useState(false)
   const wsRef = useRef<AmyWebSocket | null>(null)
+  const setIsWaitingRef = useRef(setIsWaiting)
   const mutedRef = useRef(muted)
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const recognitionRunningRef = useRef(false)
@@ -139,6 +140,10 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
 
   const canUseVoice = user?.subscription_tier !== 'free'
   const isEmpty = messages.length === 0 && !isStreaming && !isWaiting
+
+  useEffect(() => {
+    setIsWaitingRef.current = setIsWaiting
+  })
 
   useEffect(() => {
     mutedRef.current = muted
@@ -167,7 +172,12 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
       return
     }
 
+    // Stop mic immediately — before the API call — so Amy's voice isn't captured
+    recognitionRunningRef.current = false
+    recognitionRef.current?.stop()
+    setIsListening(false)
     setIsSpeaking(true)
+
     try {
       const buffer = await voiceApi.synthesize(content)
       await playAudioBuffer(buffer)
@@ -265,7 +275,11 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
         }
       },
       () => setConnected(true),
-      () => setConnected(false),
+      () => {
+        setConnected(false)
+        clearStream()
+        setIsWaitingRef.current(false)
+      },
     )
     ws.connect()
     wsRef.current = ws
@@ -274,6 +288,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
   }, [
     token,
     appendStreamToken,
+    clearStream,
     finalizeStream,
     setConnected,
     setConversationId,
@@ -368,7 +383,8 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
         recognitionRunningRef.current = false
         setIsListening(false)
         if (voiceCallActiveRef.current && !mutedRef.current && !isBusyRef.current && !isSpeakingRef.current) {
-          window.setTimeout(() => startListening(), 350)
+          // 900ms delay gives audio output time to fully stop before mic reopens
+          window.setTimeout(() => startListening(), 900)
         }
       }
       recognitionRef.current = recognition

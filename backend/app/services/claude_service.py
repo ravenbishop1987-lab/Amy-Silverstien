@@ -102,6 +102,24 @@ class ClaudeService:
             context_section = "\n\nThis is a new user — you're meeting them for the first time. Start warm, like you just pulled up a chair across the kitchen table from them. Ask what brought them here today, and make them feel safe before anything else."
         return AMY_BASE_PROMPT.replace("{memory_context}", context_section)
 
+    def _sanitize_history(self, history: list[dict]) -> list[dict]:
+        """Remove empty/invalid messages and enforce alternating user/assistant roles."""
+        cleaned = [
+            m for m in history
+            if m.get("role") in ("user", "assistant") and str(m.get("content", "")).strip()
+        ]
+        # Collapse consecutive same-role messages — keep the latest of each run
+        result: list[dict] = []
+        for msg in cleaned:
+            if result and result[-1]["role"] == msg["role"]:
+                result[-1] = {"role": msg["role"], "content": msg["content"]}
+            else:
+                result.append({"role": msg["role"], "content": msg["content"]})
+        # Claude requires the sequence to start with a user message
+        while result and result[0]["role"] != "user":
+            result.pop(0)
+        return result
+
     async def stream_response(
         self,
         user_message: str,
@@ -113,16 +131,12 @@ class ClaudeService:
 
         system_prompt = self._build_system_prompt(memory_context)
 
-        messages = []
-        for msg in conversation_history[-10:]:  # Last 10 messages for context
-            if is_adult_language(str(msg.get("content", ""))):
-                continue
-            messages.append({"role": msg["role"], "content": msg["content"]})
-        messages.append({"role": "user", "content": user_message})
+        history = self._sanitize_history(conversation_history[-20:])
+        messages = history + [{"role": "user", "content": user_message}]
 
         async with self.client.messages.stream(
             model="claude-sonnet-4-6",
-            max_tokens=1024,
+            max_tokens=2048,
             system=system_prompt,
             messages=messages,
         ) as stream:
