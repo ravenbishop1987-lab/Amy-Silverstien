@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'DM Sans', Inter, system-ui, sans-serif;
+    background-color: #FAF9F7;
+    color: #1A1A1A;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Lora', Georgia, serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #D4E6D4;
+    border-radius: 3px;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-sage-500 hover:bg-sage-600 text-white font-medium px-6 py-2.5 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-sage-400 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-cream-200 hover:bg-cream-300 text-charcoal-800 font-medium px-6 py-2.5 rounded-xl transition-all duration-200 focus:outline-none;
+  }
+
+  .btn-ghost {
+    @apply text-sage-600 hover:text-sage-700 hover:bg-sage-100 font-medium px-4 py-2 rounded-lg transition-all duration-200;
+  }
+
+  .input-base {
+    @apply w-full bg-white border border-cream-300 rounded-xl px-4 py-3 text-charcoal-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-sage-400 focus:border-transparent transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-soft p-6;
+  }
+
+  .amy-bubble {
+    @apply bg-white rounded-3xl rounded-tl-sm shadow-soft px-5 py-4 max-w-full text-charcoal-800 leading-relaxed;
+    overflow-wrap: anywhere;
+  }
+
+  .user-bubble {
+    @apply bg-sage-400 text-white rounded-3xl rounded-tr-sm px-5 py-4 max-w-full leading-relaxed;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* Typing animation dots */
+.typing-dots span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: #8FAF8F;
+  border-radius: 50%;
+  margin: 0 2px;
+  animation: bounce 1.2s infinite ease-in-out;
+}
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
+
+.voice-orb {
+  width: clamp(120px, min(22vw, 30dvh), 290px);
+  height: clamp(120px, min(22vw, 30dvh), 290px);
+  border-radius: 50%;
+  background:
+    conic-gradient(from 22deg, #dffafa 0deg, #0494b7 34deg, #0051b8 76deg, #fdfefe 104deg, #91e3df 142deg, #0a75c6 185deg, #003e99 226deg, #e8ffff 263deg, #64d0cd 314deg, #dffafa 360deg);
+  box-shadow: inset 0 0 42px rgba(255, 255, 255, 0.5), 0 24px 70px rgba(0, 99, 145, 0.18);
+  position: relative;
+  overflow: hidden;
+  transition: transform 220ms ease, filter 220ms ease;
+}
+
+.amy-picture-section {
+  width: clamp(104px, min(34vw, 32dvh), 320px);
+  aspect-ratio: 9 / 16;
+  border-radius: clamp(16px, 2vw, 24px);
+  overflow: hidden;
+  position: relative;
+  justify-self: center;
+  background: #f5f3ef;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.14);
+}
+
+@media (max-width: 1279px) {
+  .amy-picture-section {
+    width: clamp(104px, min(34vw, 30dvh), 240px);
+    aspect-ratio: 9 / 16;
+  }
+}
+
+@media (max-width: 640px) {
+  .voice-orb {
+    width: clamp(112px, min(38vw, 24dvh), 170px);
+    height: clamp(112px, min(38vw, 24dvh), 170px);
+  }
+
+  .amy-picture-section {
+    width: clamp(96px, min(33vw, 26dvh), 150px);
+  }
+}
+
+.voice-orb::before,
+.voice-orb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.voice-orb::before {
+  background:
+    radial-gradient(circle at 22% 26%, rgba(255, 255, 255, 0.95), transparent 17%),
+    radial-gradient(circle at 72% 72%, rgba(255, 255, 255, 0.25), transparent 28%),
+    linear-gradient(88deg, transparent 0 42%, rgba(255, 255, 255, 0.86) 44% 48%, transparent 52% 100%);
+  mix-blend-mode: screen;
+}
+
+.voice-orb::after {
+  inset: 8%;
+  background: conic-gradient(from 190deg, transparent, rgba(255, 255, 255, 0.18), transparent, rgba(0, 35, 120, 0.22), transparent);
+  filter: blur(8px);
+}
+
+.voice-orb-live {
+  animation: orbTurn 9s linear infinite;
+}
+
+.voice-orb-speaking {
+  animation: orbTurn 5s linear infinite, orbPulse 900ms ease-in-out infinite;
+  filter: saturate(1.15) brightness(1.03);
+}
+
+@keyframes orbTurn {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes orbPulse {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.035; }
+}

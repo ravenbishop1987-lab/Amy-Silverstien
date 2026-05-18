@@ -1,0 +1,60 @@
+# Environment files
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+frontend/dist/
+widget/dist/
+frontend/public/widget.js
+frontend/public/widget.umd.js
+frontend/public/widget.umd.cjs
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+vite.err.log
+vite.out.log
+
+# Testing
+coverage/
+.pytest_cache/
+htmlcov/
+
+# Alembic
+alembic/versions/*.pyc
+
+# Misc
+*.pem
+*.key
+*.cert
