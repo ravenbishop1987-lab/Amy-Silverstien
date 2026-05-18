@@ -3,10 +3,11 @@ from datetime import datetime
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete as sql_delete
 from app.database import get_db, AsyncSessionLocal
 from app.models.user import User, SubscriptionTier
 from app.models.conversation import Conversation
+from app.models.memory import MemoryExtract
 from app.models.subscription import VoiceCredit
 from app.schemas.conversation import ConversationCreate, ConversationResponse, ConversationSummary, MoodUpdate
 from app.config import settings
@@ -14,6 +15,33 @@ from app.services.claude_service import claude_service
 from app.services.memory_service import build_memory_context, save_extracted_memories
 from app.utils.adult_filter import is_adult_language
 from app.utils.auth import get_current_user, get_current_user_ws
+from app.utils.rate_limiter import cache_delete
+
+_FORGET_SIGNALS = (
+    "don't remember",
+    "dont remember",
+    "forget this",
+    "forget that",
+    "don't save",
+    "dont save",
+    "don't store",
+    "dont store",
+    "keep this between us",
+    "off the record",
+    "don't bring this up",
+    "dont bring this up",
+    "please forget",
+    "never mention",
+    "stop remembering",
+    "erase that",
+    "delete that",
+    "wipe that",
+)
+
+
+def _has_forget_intent(text: str) -> bool:
+    lower = text.lower()
+    return any(signal in lower for signal in _FORGET_SIGNALS)
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -251,11 +279,20 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
                     "full_response": full_response,
                 })
 
-                # Extract memories after each completed exchange so short
-                # conversations still carry forward into future chats.
-                memories = await claude_service.extract_memories(new_messages[-8:])
-                if memories:
-                    await save_extracted_memories(user.user_id, convo.conversation_id, memories, db)
+                # Respect explicit forget requests — skip extraction and purge
+                # any memories already saved from this conversation.
+                if _has_forget_intent(user_message):
+                    await db.execute(
+                        sql_delete(MemoryExtract).where(
+                            MemoryExtract.user_id == user.user_id,
+                            MemoryExtract.source_conversation_id == convo.conversation_id,
+                        )
+                    )
+                    await cache_delete(f"memory_context:{user.user_id}")
+                else:
+                    memories = await claude_service.extract_memories(new_messages[-8:])
+                    if memories:
+                        await save_extracted_memories(user.user_id, convo.conversation_id, memories, db)
 
                 await db.commit()
 

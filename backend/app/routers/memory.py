@@ -2,7 +2,7 @@ from uuid import UUID
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete as sql_delete
 from app.database import get_db
 from app.models.user import User
 from app.models.memory import LifeEvent, BehavioralPattern, Goal, Sensitivity, MemoryExtract
@@ -203,3 +203,28 @@ async def delete_memory_extract(
         raise HTTPException(status_code=404, detail="Memory extract not found")
     await db.delete(extract)
     await cache_delete(f"memory_context:{current_user.user_id}")
+
+
+@router.delete("/extracts", status_code=204)
+async def clear_all_memory_extracts(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete all auto-extracted memories for the current user."""
+    await db.execute(sql_delete(MemoryExtract).where(MemoryExtract.user_id == current_user.user_id))
+    await cache_delete(f"memory_context:{current_user.user_id}")
+
+
+@router.delete("/all", status_code=204)
+async def clear_all_memory(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Wipe all memory for the current user — extracts, events, patterns, goals, sensitivities."""
+    uid = current_user.user_id
+    await db.execute(sql_delete(MemoryExtract).where(MemoryExtract.user_id == uid))
+    await db.execute(sql_delete(LifeEvent).where(LifeEvent.user_id == uid))
+    await db.execute(sql_delete(BehavioralPattern).where(BehavioralPattern.user_id == uid))
+    await db.execute(sql_delete(Goal).where(Goal.user_id == uid))
+    await db.execute(sql_delete(Sensitivity).where(Sensitivity.user_id == uid))
+    await cache_delete(f"memory_context:{uid}")
