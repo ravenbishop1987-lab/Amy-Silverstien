@@ -75,5 +75,7 @@ class UserProfile(Base):
     preferred_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     pronouns: Mapped[str | None] = mapped_column(String(50), nullable=True)
     website_embeds: Mapped[list] = mapped_column(JSON, default=list)
+    voice_embedding: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    voice_enrolled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     user: Mapped["User"] = relationship("User", back_populates="profile")

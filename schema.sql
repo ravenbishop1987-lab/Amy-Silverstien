@@ -44,8 +44,14 @@ CREATE TABLE user_profiles (
     timezone                VARCHAR(50),
     preferred_name          VARCHAR(100),
     pronouns                VARCHAR(50),
-    website_embeds          JSONB NOT NULL DEFAULT '[]'
+    website_embeds          JSONB NOT NULL DEFAULT '[]',
+    voice_embedding         JSONB,
+    voice_enrolled_at       TIMESTAMP
 );
+
+-- Migration (run if table already exists):
+-- ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS voice_embedding JSONB;
+-- ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS voice_enrolled_at TIMESTAMP;
 
 -- ── Conversations ──────────────────────────────────────────
 

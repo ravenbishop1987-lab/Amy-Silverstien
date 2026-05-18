@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Crown, Zap, MessageCircle, ExternalLink } from 'lucide-react'
+import { Crown, Zap, MessageCircle, ExternalLink, Mic, MicOff, Trash2, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { authApi, stripeApi, embedApi } from '@/lib/api'
+import { authApi, stripeApi, embedApi, voiceApi } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 import PricingModal from '@/components/subscription/PricingModal'
 import type { AttachmentStyle, UserProfile, SubscriptionStatus } from '@/types'
@@ -11,6 +11,76 @@ export default function Settings() {
   const { user, updateUser, logout } = useAuthStore()
   const [showPricing, setShowPricing] = useState(false)
   const [embedDomain, setEmbedDomain] = useState('')
+
+  // Voice identity
+  const [voiceRecording, setVoiceRecording] = useState(false)
+  const [voiceSecondsLeft, setVoiceSecondsLeft] = useState(10)
+  const [enrolledAt, setEnrolledAt] = useState<string | null>(user?.profile?.voice_enrolled_at ?? null)
+  const [verifyResult, setVerifyResult] = useState<{ verified: boolean; similarity: number } | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const startVoiceRecord = async (onDone: (blob: Blob) => void) => {
+    chunksRef.current = []
+    setVoiceSecondsLeft(10)
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch {
+      toast.error('Microphone access denied.')
+      return
+    }
+    const mr = new MediaRecorder(stream)
+    mediaRecorderRef.current = mr
+    mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+    mr.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop())
+      const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+      onDone(blob)
+    }
+    mr.start(200)
+    setVoiceRecording(true)
+    let secs = 10
+    timerRef.current = setInterval(() => {
+      secs -= 1
+      setVoiceSecondsLeft(secs)
+      if (secs <= 0) stopVoiceRecord()
+    }, 1000)
+  }
+
+  const stopVoiceRecord = () => {
+    if (timerRef.current) clearInterval(timerRef.current)
+    mediaRecorderRef.current?.stop()
+    setVoiceRecording(false)
+  }
+
+  const enrollMutation = useMutation({
+    mutationFn: (blob: Blob) => voiceApi.enrollVoice(blob),
+    onSuccess: (res) => {
+      setEnrolledAt(res.data.enrolled_at)
+      toast.success('Voice enrolled! Amy now knows your voice.')
+    },
+    onError: (err: { response?: { data?: { detail?: string } } }) =>
+      toast.error(err?.response?.data?.detail || 'Enrollment failed'),
+  })
+
+  const verifyMutation = useMutation({
+    mutationFn: (blob: Blob) => voiceApi.verifyVoice(blob),
+    onSuccess: (res) => {
+      setVerifyResult(res.data)
+      const pct = Math.round(res.data.similarity * 100)
+      if (res.data.verified) toast.success(`Voice matched! ${pct}% similarity`)
+      else toast.error(`Voice not matched (${pct}% — below 75% threshold)`)
+    },
+    onError: (err: { response?: { data?: { detail?: string } } }) =>
+      toast.error(err?.response?.data?.detail || 'Verification failed'),
+  })
+
+  const deleteEnrollmentMutation = useMutation({
+    mutationFn: () => voiceApi.deleteEnrollment(),
+    onSuccess: () => { setEnrolledAt(null); setVerifyResult(null); toast.success('Voice print removed.') },
+  })
 
   const { data: subStatus } = useQuery<SubscriptionStatus>({
     queryKey: ['subscription'],
@@ -238,6 +308,81 @@ export default function Settings() {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* Voice Identity */}
+        <div className="card">
+          <h2 className="font-medium text-charcoal-800 mb-1">Voice identity</h2>
+          <p className="text-xs text-stone-400 mb-4">
+            Train Amy to recognize your voice. Record a 10-second sample — she'll know it's you every time.
+          </p>
+
+          {enrolledAt ? (
+            <div className="flex items-center gap-3 p-3 bg-sage-50 rounded-xl border border-sage-200 mb-4">
+              <ShieldCheck size={18} className="text-sage-600 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-sage-800">Voice enrolled</p>
+                <p className="text-xs text-sage-600">
+                  Since {new Date(enrolledAt).toLocaleDateString()}
+                  {verifyResult && ` · Last check: ${Math.round(verifyResult.similarity * 100)}% match`}
+                </p>
+              </div>
+              <button
+                onClick={() => deleteEnrollmentMutation.mutate()}
+                disabled={deleteEnrollmentMutation.isPending}
+                className="text-stone-400 hover:text-blush-500 transition-colors"
+                title="Remove voice print"
+              >
+                <Trash2 size={15} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 p-3 bg-stone-50 rounded-xl border border-stone-200 mb-4">
+              <Mic size={18} className="text-stone-400 shrink-0" />
+              <p className="text-sm text-stone-500">No voice enrolled yet</p>
+            </div>
+          )}
+
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                if (voiceRecording) { stopVoiceRecord(); return }
+                startVoiceRecord((blob) => enrollMutation.mutate(blob))
+              }}
+              disabled={enrollMutation.isPending || verifyMutation.isPending}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                voiceRecording
+                  ? 'bg-blush-400 text-white animate-pulse'
+                  : 'bg-charcoal-900 text-white hover:bg-charcoal-800'
+              }`}
+            >
+              {voiceRecording ? <MicOff size={15} /> : <Mic size={15} />}
+              {voiceRecording
+                ? `Recording… ${voiceSecondsLeft}s`
+                : enrolledAt ? 'Re-enroll voice' : 'Enroll voice'}
+            </button>
+
+            {enrolledAt && (
+              <button
+                onClick={() => {
+                  if (voiceRecording) { stopVoiceRecord(); return }
+                  startVoiceRecord((blob) => verifyMutation.mutate(blob))
+                }}
+                disabled={enrollMutation.isPending || verifyMutation.isPending}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border border-stone-200 hover:bg-stone-50 transition-colors"
+              >
+                <ShieldCheck size={15} />
+                {voiceRecording ? `Listening… ${voiceSecondsLeft}s` : 'Test voice match'}
+              </button>
+            )}
+          </div>
+
+          {enrollMutation.isPending && (
+            <p className="mt-3 text-xs text-stone-400">Processing voice print…</p>
+          )}
+          {verifyMutation.isPending && (
+            <p className="mt-3 text-xs text-stone-400">Comparing voice…</p>
           )}
         </div>
 

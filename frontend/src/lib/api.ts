@@ -80,6 +80,19 @@ export const voiceApi = {
     })
     return res.data.text
   },
+  enrollVoice: async (blob: Blob) => {
+    const form = new FormData()
+    form.append('audio', blob, 'enroll.webm')
+    return api.post('/voice/enroll', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  },
+  verifyVoice: async (blob: Blob) => {
+    const form = new FormData()
+    form.append('audio', blob, 'verify.webm')
+    return api.post<{ verified: boolean; similarity: number; enrolled_at: string }>(
+      '/voice/verify', form, { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+  },
+  deleteEnrollment: () => api.delete('/voice/enroll'),
 }
 
 // Stripe
