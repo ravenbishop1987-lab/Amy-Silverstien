@@ -15,6 +15,7 @@ export interface UserProfile {
   timezone: string | null
   preferred_name: string | null
   pronouns: string | null
+  voice_enrolled_at: string | null
 }
 
 export interface User {
