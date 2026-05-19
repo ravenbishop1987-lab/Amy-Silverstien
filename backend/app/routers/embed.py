@@ -1,15 +1,11 @@
 import uuid
-import json
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.database import get_db
-from app.models.user import User
-from app.models.subscription import WebsiteEmbed
+from supabase import AsyncClient
+from app.database import get_supabase
+from app.models.user import UserRecord
 from app.utils.auth import get_current_user
 
 router = APIRouter(prefix="/embed", tags=["embed"])
@@ -40,29 +36,31 @@ class EmbedResponse(BaseModel):
 @router.post("/create", response_model=EmbedResponse)
 async def create_embed(
     data: EmbedCreate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
     embed_code = str(uuid.uuid4()).replace("-", "")[:16]
     config = {**DEFAULT_WIDGET_CONFIG, **(data.widget_config or {})}
+    embed_id = str(uuid.uuid4())
+    now = datetime.utcnow().isoformat()
 
-    embed = WebsiteEmbed(
-        user_id=current_user.user_id,
-        website_domain=data.website_domain,
-        embed_code=embed_code,
-        widget_config=config,
-        active=True,
-    )
-    db.add(embed)
-    await db.flush()
+    await supa.table("website_embeds").insert({
+        "embed_id": embed_id,
+        "user_id": str(current_user.user_id),
+        "website_domain": data.website_domain,
+        "embed_code": embed_code,
+        "widget_config": config,
+        "active": True,
+        "created_at": now,
+    }).execute()
 
     from app.config import settings
     script_tag = f'<script src="{settings.FRONTEND_URL}/widget.js?embed_id={embed_code}" defer></script>'
 
     return EmbedResponse(
-        embed_id=str(embed.embed_id),
+        embed_id=embed_id,
         embed_code=embed_code,
-        website_domain=embed.website_domain,
+        website_domain=data.website_domain,
         widget_config=config,
         script_tag=script_tag,
         active=True,
@@ -71,34 +69,31 @@ async def create_embed(
 
 @router.get("/list", response_model=list[EmbedResponse])
 async def list_embeds(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
-    result = await db.execute(
-        select(WebsiteEmbed).where(WebsiteEmbed.user_id == current_user.user_id)
-    )
-    embeds = result.scalars().all()
+    result = await supa.table("website_embeds").select("*").eq("user_id", str(current_user.user_id)).execute()
     from app.config import settings
     return [
         EmbedResponse(
-            embed_id=str(e.embed_id),
-            embed_code=e.embed_code,
-            website_domain=e.website_domain,
-            widget_config=e.widget_config,
-            script_tag=f'<script src="{settings.FRONTEND_URL}/widget.js?embed_id={e.embed_code}" defer></script>',
-            active=e.active,
+            embed_id=e["embed_id"],
+            embed_code=e["embed_code"],
+            website_domain=e["website_domain"],
+            widget_config=e["widget_config"],
+            script_tag=f'<script src="{settings.FRONTEND_URL}/widget.js?embed_id={e["embed_code"]}" defer></script>',
+            active=e["active"],
         )
-        for e in embeds
+        for e in (result.data or [])
     ]
 
 
 @router.get("/config/{embed_code}")
-async def get_embed_config(embed_code: str, db: AsyncSession = Depends(get_db)):
+async def get_embed_config(embed_code: str, supa: AsyncClient = Depends(get_supabase)):
     """Called by the widget to fetch its configuration."""
-    result = await db.execute(select(WebsiteEmbed).where(WebsiteEmbed.embed_code == embed_code))
-    embed = result.scalar_one_or_none()
-    if not embed or not embed.active:
+    result = await supa.table("website_embeds").select("*").eq("embed_code", embed_code).maybe_single().execute()
+    embed = result.data
+    if not embed or not embed.get("active"):
         raise HTTPException(status_code=404, detail="Embed not found")
 
-    embed.last_used = datetime.utcnow()
-    return embed.widget_config
+    await supa.table("website_embeds").update({"last_used": datetime.utcnow().isoformat()}).eq("embed_code", embed_code).execute()
+    return embed["widget_config"]

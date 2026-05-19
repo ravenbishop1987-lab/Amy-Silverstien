@@ -1,10 +1,8 @@
-import uuid
-from datetime import datetime
-from sqlalchemy import String, DateTime, ForeignKey, JSON, Enum as SAEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
-from app.database import Base
 import enum
+from uuid import UUID
+from datetime import datetime
+from dataclasses import dataclass
+from typing import Optional
 
 
 class SubscriptionTier(str, enum.Enum):
@@ -27,55 +25,39 @@ class CommunicationPreference(str, enum.Enum):
     both = "both"
 
 
-class User(Base):
-    __tablename__ = "users"
-
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    subscription_tier: Mapped[SubscriptionTier] = mapped_column(
-        SAEnum(SubscriptionTier, name="subscription_tier", create_type=False),
-        default=SubscriptionTier.free, nullable=False
-    )
-    stripe_customer_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    stripe_subscription_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_login: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-
-    profile: Mapped["UserProfile"] = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    conversations: Mapped[list["Conversation"]] = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
-    life_events: Mapped[list["LifeEvent"]] = relationship("LifeEvent", back_populates="user", cascade="all, delete-orphan")
-    behavioral_patterns: Mapped[list["BehavioralPattern"]] = relationship("BehavioralPattern", back_populates="user", cascade="all, delete-orphan")
-    goals: Mapped[list["Goal"]] = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
-    sensitivities: Mapped[list["Sensitivity"]] = relationship("Sensitivity", back_populates="user", cascade="all, delete-orphan")
-    memory_extracts: Mapped[list["MemoryExtract"]] = relationship("MemoryExtract", back_populates="user", cascade="all, delete-orphan")
-    voice_credits: Mapped["VoiceCredit"] = relationship("VoiceCredit", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    subscription_events: Mapped[list["SubscriptionEvent"]] = relationship("SubscriptionEvent", back_populates="user", cascade="all, delete-orphan")
-    website_embeds: Mapped[list["WebsiteEmbed"]] = relationship("WebsiteEmbed", back_populates="user", cascade="all, delete-orphan")
+def _parse_dt(val) -> Optional[datetime]:
+    if not val:
+        return None
+    if isinstance(val, datetime):
+        return val
+    try:
+        from dateutil.parser import parse
+        return parse(val)
+    except Exception:
+        return None
 
 
-class UserProfile(Base):
-    __tablename__ = "user_profiles"
+@dataclass
+class UserRecord:
+    """Lightweight user object built from a Supabase row dict."""
+    user_id: UUID
+    email: str
+    password_hash: str
+    subscription_tier: SubscriptionTier
+    stripe_customer_id: Optional[str] = None
+    stripe_subscription_id: Optional[str] = None
+    created_at: Optional[datetime] = None
+    last_login: Optional[datetime] = None
 
-    profile_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.user_id"), unique=True)
-    age: Mapped[int | None] = mapped_column(nullable=True)
-    relationship_status: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    adhd_severity: Mapped[int | None] = mapped_column(nullable=True)
-    attachment_style: Mapped[AttachmentStyle] = mapped_column(
-        SAEnum(AttachmentStyle, name="attachment_style", create_type=False),
-        default=AttachmentStyle.unknown
-    )
-    communication_preference: Mapped[CommunicationPreference] = mapped_column(
-        SAEnum(CommunicationPreference, name="communication_preference", create_type=False),
-        default=CommunicationPreference.text
-    )
-    timezone: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    preferred_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    pronouns: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    website_embeds: Mapped[list] = mapped_column(JSON, default=list)
-    voice_embedding: Mapped[list | None] = mapped_column(JSON, nullable=True)
-    voice_enrolled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-
-    user: Mapped["User"] = relationship("User", back_populates="profile")
+    @classmethod
+    def from_row(cls, row: dict) -> "UserRecord":
+        return cls(
+            user_id=UUID(str(row["user_id"])),
+            email=row["email"],
+            password_hash=row["password_hash"],
+            subscription_tier=SubscriptionTier(row.get("subscription_tier", "free")),
+            stripe_customer_id=row.get("stripe_customer_id"),
+            stripe_subscription_id=row.get("stripe_subscription_id"),
+            created_at=_parse_dt(row.get("created_at")),
+            last_login=_parse_dt(row.get("last_login")),
+        )

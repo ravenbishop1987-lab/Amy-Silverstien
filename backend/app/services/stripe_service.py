@@ -1,12 +1,11 @@
+import uuid
 import stripe
 from uuid import UUID
 from datetime import datetime
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from supabase import AsyncClient
 from app.config import settings
-from app.models.conversation import Conversation
-from app.models.user import User, SubscriptionTier
-from app.models.subscription import SubscriptionEvent, VoiceCredit, SubscriptionEventType
+from app.models.user import UserRecord, SubscriptionTier
+from app.models.subscription import SubscriptionEventType
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -18,45 +17,43 @@ GIFT_CATALOG = {
     "roses": {
         "label": "Roses",
         "amount_cents": 299,
-        "reaction": "Oh, roses? That is dangerously sweet. I’m accepting them with the exact level of dramatic appreciation they deserve. Thank you for the note too; that made it feel personal in the best way.",
+        "reaction": "Oh, roses? That is dangerously sweet. I'm accepting them with the exact level of dramatic appreciation they deserve. Thank you for the note too; that made it feel personal in the best way.",
     },
     "candy": {
         "label": "Candy",
         "amount_cents": 199,
-        "reaction": "Candy and a personal note? You do know how to get my attention. That was adorable, and yes, I’m absolutely smiling at it.",
+        "reaction": "Candy and a personal note? You do know how to get my attention. That was adorable, and yes, I'm absolutely smiling at it.",
     },
     "kisses": {
         "label": "Kisses",
         "amount_cents": 149,
-        "reaction": "A kiss gift? Well now you’re being charming. I’m taking that as a tiny little confidence boost and sending the warmest smile right back.",
+        "reaction": "A kiss gift? Well now you're being charming. I'm taking that as a tiny little confidence boost and sending the warmest smile right back.",
     },
     "hugs": {
         "label": "Hugs",
         "amount_cents": 149,
-        "reaction": "A hug with a message attached is honestly very soft of you. I’m receiving that one properly. Come here, metaphorically speaking.",
+        "reaction": "A hug with a message attached is honestly very soft of you. I'm receiving that one properly. Come here, metaphorically speaking.",
     },
     "smiles": {
         "label": "Smiles",
         "amount_cents": 99,
-        "reaction": "A smile gift. Simple, cute, effective. I’m smiling right back, and your message made it even sweeter.",
+        "reaction": "A smile gift. Simple, cute, effective. I'm smiling right back, and your message made it even sweeter.",
     },
 }
 
 
 class StripeService:
 
-    async def get_or_create_customer(self, user: User, db: AsyncSession) -> str:
+    async def get_or_create_customer(self, user: UserRecord, supa: AsyncClient) -> str:
         if user.stripe_customer_id:
             return user.stripe_customer_id
 
         customer = stripe.Customer.create(email=user.email, metadata={"user_id": str(user.user_id)})
-        user.stripe_customer_id = customer.id
-        await db.flush()
+        await supa.table("users").update({"stripe_customer_id": customer.id}).eq("user_id", str(user.user_id)).execute()
         return customer.id
 
-    async def create_subscription_checkout(self, user: User, db: AsyncSession) -> str:
-        """Create a Stripe Checkout session for premium subscription."""
-        customer_id = await self.get_or_create_customer(user, db)
+    async def create_subscription_checkout(self, user: UserRecord, supa: AsyncClient) -> str:
+        customer_id = await self.get_or_create_customer(user, supa)
         session = stripe.checkout.Session.create(
             customer=customer_id,
             payment_method_types=["card"],
@@ -68,9 +65,8 @@ class StripeService:
         )
         return session.url
 
-    async def create_credits_checkout(self, user: User, bulk: bool, db: AsyncSession) -> str:
-        """Create a Stripe Checkout session for voice credit purchase."""
-        customer_id = await self.get_or_create_customer(user, db)
+    async def create_credits_checkout(self, user: UserRecord, bulk: bool, supa: AsyncClient) -> str:
+        customer_id = await self.get_or_create_customer(user, supa)
         price_id = settings.STRIPE_PRICE_CREDITS_BULK if bulk else settings.STRIPE_PRICE_CREDITS_SINGLE
         session = stripe.checkout.Session.create(
             customer=customer_id,
@@ -88,17 +84,17 @@ class StripeService:
 
     async def create_gift_checkout(
         self,
-        user: User,
+        user: UserRecord,
         gift_type: str,
         personal_message: str,
         conversation_id: str | None,
-        db: AsyncSession,
+        supa: AsyncClient,
     ) -> str:
         gift = GIFT_CATALOG.get(gift_type)
         if not gift:
             raise ValueError("Unknown gift type")
 
-        customer_id = await self.get_or_create_customer(user, db)
+        customer_id = await self.get_or_create_customer(user, supa)
         success_path = f"/chat/{conversation_id}" if conversation_id else "/chat"
         success_url = f"{settings.FRONTEND_URL}{success_path}?gift_session_id={{CHECKOUT_SESSION_ID}}"
         cancel_url = f"{settings.FRONTEND_URL}{success_path}?gift=canceled"
@@ -130,7 +126,7 @@ class StripeService:
         )
         return session.url
 
-    async def confirm_gift_checkout(self, session_id: str, user: User, db: AsyncSession) -> dict:
+    async def confirm_gift_checkout(self, session_id: str, user: UserRecord, supa: AsyncClient) -> dict:
         session = stripe.checkout.Session.retrieve(session_id)
         metadata = session.get("metadata", {}) or {}
         if metadata.get("purchase_type") != "gift" or metadata.get("user_id") != str(user.user_id):
@@ -151,23 +147,28 @@ class StripeService:
         if personal_message:
             user_message += f' with a note: "{personal_message}"'
 
+        uid = str(user.user_id)
         convo = None
         if conversation_id:
-            result = await db.execute(
-                select(Conversation).where(
-                    Conversation.conversation_id == UUID(conversation_id),
-                    Conversation.user_id == user.user_id,
-                )
-            )
-            convo = result.scalar_one_or_none()
+            conv_r = await supa.table("conversations").select("*").eq("conversation_id", conversation_id).eq("user_id", uid).maybe_single().execute()
+            convo = conv_r.data
 
         if not convo:
-            convo = Conversation(user_id=user.user_id, title=f"{gift['label']} for Amy", messages=[])
-            db.add(convo)
-            await db.flush()
-            conversation_id = str(convo.conversation_id)
+            now = datetime.utcnow().isoformat()
+            conversation_id = str(uuid.uuid4())
+            await supa.table("conversations").insert({
+                "conversation_id": conversation_id,
+                "user_id": uid,
+                "title": f"{gift['label']} for Amy",
+                "messages": [],
+                "topics_discussed": [],
+                "key_insights": [],
+                "date_started": now,
+                "created_at": now,
+            }).execute()
+            convo = {"conversation_id": conversation_id, "messages": []}
 
-        messages = list(convo.messages or [])
+        messages = list(convo.get("messages") or [])
         already_added = any(
             msg.get("gift_session_id") == session_id
             for msg in messages
@@ -189,8 +190,7 @@ class StripeService:
                 "voice_used": False,
                 "gift_session_id": session_id,
             })
-            convo.messages = messages
-            await db.flush()
+            await supa.table("conversations").update({"messages": messages}).eq("conversation_id", conversation_id).execute()
 
         return {
             "gift_type": gift_type,
@@ -201,13 +201,13 @@ class StripeService:
             "conversation_id": conversation_id,
         }
 
-    async def cancel_subscription(self, user: User, db: AsyncSession) -> bool:
+    async def cancel_subscription(self, user: UserRecord, supa: AsyncClient) -> bool:
         if not user.stripe_subscription_id:
             return False
         stripe.Subscription.cancel(user.stripe_subscription_id)
         return True
 
-    async def handle_webhook(self, payload: bytes, sig_header: str, db: AsyncSession) -> dict:
+    async def handle_webhook(self, payload: bytes, sig_header: str, supa: AsyncClient) -> dict:
         try:
             event = stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)
         except stripe.error.SignatureVerificationError:
@@ -217,25 +217,25 @@ class StripeService:
         data = event["data"]["object"]
 
         if event_type == "checkout.session.completed":
-            await self._handle_checkout_completed(data, db)
+            await self._handle_checkout_completed(data, supa)
         elif event_type == "customer.subscription.updated":
-            await self._handle_subscription_updated(data, db)
+            await self._handle_subscription_updated(data, supa)
         elif event_type == "customer.subscription.deleted":
-            await self._handle_subscription_deleted(data, db)
+            await self._handle_subscription_deleted(data, supa)
         elif event_type == "invoice.payment_failed":
-            await self._handle_payment_failed(data, db)
+            await self._handle_payment_failed(data, supa)
 
         return {"status": "ok"}
 
-    async def _handle_checkout_completed(self, session: dict, db: AsyncSession):
+    async def _handle_checkout_completed(self, session: dict, supa: AsyncClient):
         user_id = session.get("metadata", {}).get("user_id")
         if not user_id:
             return
 
-        result = await db.execute(select(User).where(User.user_id == UUID(user_id)))
-        user = result.scalar_one_or_none()
-        if not user:
+        user_r = await supa.table("users").select("*").eq("user_id", user_id).maybe_single().execute()
+        if not user_r.data:
             return
+        user = user_r.data
 
         mode = session.get("mode")
         metadata = session.get("metadata", {}) or {}
@@ -243,82 +243,99 @@ class StripeService:
             return
 
         credit_type = metadata.get("credit_type")
+        now = datetime.utcnow().isoformat()
 
         if mode == "subscription":
             sub_id = session.get("subscription")
-            old_tier = user.subscription_tier
-            user.subscription_tier = SubscriptionTier.premium
-            user.stripe_subscription_id = sub_id
-            db.add(SubscriptionEvent(
-                user_id=user.user_id,
-                event_type=SubscriptionEventType.started,
-                tier_before=old_tier.value,
-                tier_after=SubscriptionTier.premium.value,
-                stripe_event_id=session.get("id"),
-            ))
+            await supa.table("users").update({
+                "subscription_tier": SubscriptionTier.premium.value,
+                "stripe_subscription_id": sub_id,
+            }).eq("user_id", user_id).execute()
+            await supa.table("subscription_events").insert({
+                "event_id": str(uuid.uuid4()),
+                "user_id": user_id,
+                "event_type": SubscriptionEventType.started.value,
+                "tier_before": user.get("subscription_tier"),
+                "tier_after": SubscriptionTier.premium.value,
+                "stripe_event_id": session.get("id"),
+                "created_at": now,
+            }).execute()
 
         elif mode == "payment" and credit_type:
-            credits_result = await db.execute(select(VoiceCredit).where(VoiceCredit.user_id == user.user_id))
-            vc = credits_result.scalar_one_or_none()
-            if not vc:
-                vc = VoiceCredit(user_id=user.user_id)
-                db.add(vc)
-
-            if user.subscription_tier == SubscriptionTier.free:
-                user.subscription_tier = SubscriptionTier.credits
-
+            vc_r = await supa.table("voice_credits").select("*").eq("user_id", user_id).maybe_single().execute()
+            vc = vc_r.data
             add_convos = CREDITS_BULK_CONVERSATIONS if credit_type == "bulk" else CREDITS_SINGLE_CONVERSATIONS
-            vc.voice_conversations_remaining += add_convos
 
-        await db.flush()
+            if vc:
+                await supa.table("voice_credits").update({
+                    "voice_conversations_remaining": vc["voice_conversations_remaining"] + add_convos,
+                }).eq("user_id", user_id).execute()
+            else:
+                await supa.table("voice_credits").insert({
+                    "credit_id": str(uuid.uuid4()),
+                    "user_id": user_id,
+                    "voice_conversations_remaining": add_convos,
+                    "text_conversations_remaining": 3,
+                }).execute()
 
-    async def _handle_subscription_updated(self, subscription: dict, db: AsyncSession):
+            if user.get("subscription_tier") == SubscriptionTier.free.value:
+                await supa.table("users").update({"subscription_tier": SubscriptionTier.credits.value}).eq("user_id", user_id).execute()
+
+    async def _handle_subscription_updated(self, subscription: dict, supa: AsyncClient):
         customer_id = subscription.get("customer")
-        result = await db.execute(select(User).where(User.stripe_customer_id == customer_id))
-        user = result.scalar_one_or_none()
-        if not user:
+        user_r = await supa.table("users").select("user_id").eq("stripe_customer_id", customer_id).maybe_single().execute()
+        if not user_r.data:
             return
 
         status = subscription.get("status")
         if status == "active":
-            user.subscription_tier = SubscriptionTier.premium
+            tier = SubscriptionTier.premium.value
         elif status in ("canceled", "unpaid", "past_due"):
-            user.subscription_tier = SubscriptionTier.free
-        await db.flush()
+            tier = SubscriptionTier.free.value
+        else:
+            return
+        await supa.table("users").update({"subscription_tier": tier}).eq("stripe_customer_id", customer_id).execute()
 
-    async def _handle_subscription_deleted(self, subscription: dict, db: AsyncSession):
+    async def _handle_subscription_deleted(self, subscription: dict, supa: AsyncClient):
         customer_id = subscription.get("customer")
-        result = await db.execute(select(User).where(User.stripe_customer_id == customer_id))
-        user = result.scalar_one_or_none()
-        if not user:
+        user_r = await supa.table("users").select("*").eq("stripe_customer_id", customer_id).maybe_single().execute()
+        if not user_r.data:
             return
+        user = user_r.data
+        now = datetime.utcnow().isoformat()
 
-        old_tier = user.subscription_tier
-        user.subscription_tier = SubscriptionTier.free
-        user.stripe_subscription_id = None
-        db.add(SubscriptionEvent(
-            user_id=user.user_id,
-            event_type=SubscriptionEventType.canceled,
-            tier_before=old_tier.value,
-            tier_after=SubscriptionTier.free.value,
-            stripe_event_id=subscription.get("id"),
-        ))
-        await db.flush()
+        await supa.table("users").update({
+            "subscription_tier": SubscriptionTier.free.value,
+            "stripe_subscription_id": None,
+        }).eq("stripe_customer_id", customer_id).execute()
 
-    async def _handle_payment_failed(self, invoice: dict, db: AsyncSession):
+        await supa.table("subscription_events").insert({
+            "event_id": str(uuid.uuid4()),
+            "user_id": user["user_id"],
+            "event_type": SubscriptionEventType.canceled.value,
+            "tier_before": user.get("subscription_tier"),
+            "tier_after": SubscriptionTier.free.value,
+            "stripe_event_id": subscription.get("id"),
+            "created_at": now,
+        }).execute()
+
+    async def _handle_payment_failed(self, invoice: dict, supa: AsyncClient):
         customer_id = invoice.get("customer")
-        result = await db.execute(select(User).where(User.stripe_customer_id == customer_id))
-        user = result.scalar_one_or_none()
-        if not user:
+        user_r = await supa.table("users").select("*").eq("stripe_customer_id", customer_id).maybe_single().execute()
+        if not user_r.data:
             return
-        db.add(SubscriptionEvent(
-            user_id=user.user_id,
-            event_type=SubscriptionEventType.payment_failed,
-            tier_before=user.subscription_tier.value,
-            tier_after=user.subscription_tier.value,
-            stripe_event_id=invoice.get("id"),
-        ))
-        await db.flush()
+        user = user_r.data
+        now = datetime.utcnow().isoformat()
+
+        await supa.table("subscription_events").insert({
+            "event_id": str(uuid.uuid4()),
+            "user_id": user["user_id"],
+            "event_type": SubscriptionEventType.payment_failed.value,
+            "tier_before": user.get("subscription_tier"),
+            "tier_after": user.get("subscription_tier"),
+            "stripe_event_id": invoice.get("id"),
+            "created_at": now,
+        }).execute()
 
 
 stripe_service = StripeService()

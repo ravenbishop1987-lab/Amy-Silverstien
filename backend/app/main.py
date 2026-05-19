@@ -3,18 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from app.config import settings
-from app.database import engine, Base
+from app.database import init_supabase
 from app.routers import auth, conversations, memory, voice, stripe, embed, admin
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Tables are created via schema.sql in Supabase — just verify connection
-    from sqlalchemy import text
-    async with engine.connect() as conn:
-        await conn.execute(text("SELECT 1"))
+    await init_supabase()
     yield
-    await engine.dispose()
 
 
 app = FastAPI(

@@ -1,14 +1,10 @@
 import json
+import uuid
 from datetime import datetime
-from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete as sql_delete
-from app.database import get_db, AsyncSessionLocal
-from app.models.user import User, SubscriptionTier
-from app.models.conversation import Conversation
-from app.models.memory import MemoryExtract
-from app.models.subscription import VoiceCredit
+from supabase import AsyncClient
+from app.database import get_supabase
+from app.models.user import UserRecord, SubscriptionTier
 from app.schemas.conversation import ConversationCreate, ConversationResponse, ConversationSummary, MoodUpdate
 from app.config import settings
 from app.services.claude_service import claude_service
@@ -43,26 +39,35 @@ def _has_forget_intent(text: str) -> bool:
     lower = text.lower()
     return any(signal in lower for signal in _FORGET_SIGNALS)
 
+
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
-async def _check_conversation_limit(user: User, db: AsyncSession) -> bool:
+async def _check_conversation_limit(user: UserRecord, supa: AsyncClient) -> bool:
     """Returns True if user can start a new conversation, raises 403 if not."""
     if user.subscription_tier in (SubscriptionTier.premium, SubscriptionTier.credits):
         return True
 
-    # Free tier: check daily text conversation limit
-    result = await db.execute(select(VoiceCredit).where(VoiceCredit.user_id == user.user_id))
-    vc = result.scalar_one_or_none()
+    uid = str(user.user_id)
+    vc_r = await supa.table("voice_credits").select("*").eq("user_id", uid).maybe_single().execute()
+    vc = vc_r.data
     if not vc:
         return True
 
     today = datetime.utcnow().date()
-    if vc.last_reset_date and vc.last_reset_date.date() < today:
-        vc.text_conversations_remaining = 3
-        vc.last_reset_date = datetime.utcnow()
+    last_reset = None
+    if vc.get("last_reset_date"):
+        from dateutil.parser import parse as parse_dt
+        last_reset = parse_dt(vc["last_reset_date"]).date()
 
-    if vc.text_conversations_remaining <= 0:
+    if last_reset and last_reset < today:
+        vc["text_conversations_remaining"] = 3
+        await supa.table("voice_credits").update({
+            "text_conversations_remaining": 3,
+            "last_reset_date": datetime.utcnow().isoformat(),
+        }).eq("user_id", uid).execute()
+
+    if vc["text_conversations_remaining"] <= 0:
         raise HTTPException(
             status_code=403,
             detail={
@@ -70,7 +75,10 @@ async def _check_conversation_limit(user: User, db: AsyncSession) -> bool:
                 "message": "You've used your 3 free conversations for today. Upgrade to keep chatting with Amy!",
             },
         )
-    vc.text_conversations_remaining -= 1
+
+    await supa.table("voice_credits").update({
+        "text_conversations_remaining": vc["text_conversations_remaining"] - 1,
+    }).eq("user_id", uid).execute()
     return True
 
 
@@ -78,104 +86,85 @@ async def _check_conversation_limit(user: User, db: AsyncSession) -> bool:
 async def list_conversations(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, le=100),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
-    result = await db.execute(
-        select(Conversation)
-        .where(Conversation.user_id == current_user.user_id)
-        .order_by(Conversation.date_started.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-    convos = result.scalars().all()
+    result = await supa.table("conversations").select("*").eq("user_id", str(current_user.user_id)).order("date_started", desc=True).range(skip, skip + limit - 1).execute()
     return [
         ConversationSummary(
-            conversation_id=c.conversation_id,
-            title=c.title,
-            date_started=c.date_started,
-            date_ended=c.date_ended,
-            message_count=len(c.messages),
-            topics_discussed=c.topics_discussed,
-            user_mood_before=c.user_mood_before,
-            user_mood_after=c.user_mood_after,
+            conversation_id=c["conversation_id"],
+            title=c.get("title"),
+            date_started=c["date_started"],
+            date_ended=c.get("date_ended"),
+            message_count=len(c.get("messages") or []),
+            topics_discussed=c.get("topics_discussed") or [],
+            user_mood_before=c.get("user_mood_before"),
+            user_mood_after=c.get("user_mood_after"),
         )
-        for c in convos
+        for c in (result.data or [])
     ]
 
 
 @router.get("/{conversation_id}", response_model=ConversationResponse)
 async def get_conversation(
-    conversation_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    conversation_id: str,
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
-    result = await db.execute(
-        select(Conversation).where(
-            Conversation.conversation_id == conversation_id,
-            Conversation.user_id == current_user.user_id,
-        )
-    )
-    convo = result.scalar_one_or_none()
-    if not convo:
+    result = await supa.table("conversations").select("*").eq("conversation_id", conversation_id).eq("user_id", str(current_user.user_id)).maybe_single().execute()
+    if not result.data:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    return convo
+    return result.data
 
 
 @router.post("", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)
 async def create_conversation(
     data: ConversationCreate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
-    await _check_conversation_limit(current_user, db)
-    convo = Conversation(
-        user_id=current_user.user_id,
-        title=data.title,
-        messages=[],
-        user_mood_before=data.user_mood_before,
-    )
-    db.add(convo)
-    await db.flush()
-    return convo
+    await _check_conversation_limit(current_user, supa)
+    now = datetime.utcnow().isoformat()
+    convo_id = str(uuid.uuid4())
+    row = {
+        "conversation_id": convo_id,
+        "user_id": str(current_user.user_id),
+        "title": data.title,
+        "messages": [],
+        "topics_discussed": [],
+        "key_insights": [],
+        "user_mood_before": data.user_mood_before,
+        "date_started": now,
+        "created_at": now,
+    }
+    result = await supa.table("conversations").insert(row).execute()
+    return result.data[0] if result.data else row
 
 
 @router.patch("/{conversation_id}/mood", response_model=ConversationResponse)
 async def update_mood(
-    conversation_id: UUID,
+    conversation_id: str,
     data: MoodUpdate,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
-    result = await db.execute(
-        select(Conversation).where(
-            Conversation.conversation_id == conversation_id,
-            Conversation.user_id == current_user.user_id,
-        )
-    )
-    convo = result.scalar_one_or_none()
-    if not convo:
+    existing = await supa.table("conversations").select("conversation_id").eq("conversation_id", conversation_id).eq("user_id", str(current_user.user_id)).maybe_single().execute()
+    if not existing.data:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    convo.user_mood_after = data.mood_after
-    return convo
+    result = await supa.table("conversations").update({"user_mood_after": data.mood_after}).eq("conversation_id", conversation_id).execute()
+    return result.data[0] if result.data else existing.data
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_conversation(
-    conversation_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    conversation_id: str,
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
-    result = await db.execute(
-        select(Conversation).where(
-            Conversation.conversation_id == conversation_id,
-            Conversation.user_id == current_user.user_id,
-        )
-    )
-    convo = result.scalar_one_or_none()
-    if not convo:
+    existing = await supa.table("conversations").select("conversation_id").eq("conversation_id", conversation_id).eq("user_id", str(current_user.user_id)).maybe_single().execute()
+    if not existing.data:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    await db.delete(convo)
+    await supa.table("conversations").delete().eq("conversation_id", conversation_id).execute()
 
 
 @router.websocket("/ws/chat")
@@ -189,123 +178,120 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
                    {"type": "error", "message": "..."}
     """
     await websocket.accept()
+    supa = await get_supabase()
 
-    async with AsyncSessionLocal() as db:
-        user = await get_current_user_ws(token, db)
-        if not user:
-            await websocket.send_json({"type": "error", "message": "Unauthorized"})
-            await websocket.close(code=4001)
-            return
+    user = await get_current_user_ws(token, supa)
+    if not user:
+        await websocket.send_json({"type": "error", "message": "Unauthorized"})
+        await websocket.close(code=4001)
+        return
 
-        try:
-            while True:
-                raw = await websocket.receive_text()
-                msg = json.loads(raw)
+    conversation_id: str | None = None
 
-                if msg.get("type") != "message":
-                    continue
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            msg = json.loads(raw)
 
-                user_message = msg.get("content", "").strip()
-                conversation_id = msg.get("conversation_id")
+            if msg.get("type") != "message":
+                continue
 
-                if not user_message:
-                    continue
+            user_message = msg.get("content", "").strip()
+            conversation_id_str = msg.get("conversation_id")
 
-                if is_adult_language(user_message):
-                    await websocket.send_json({
-                        "type": "redirect",
-                        "url": settings.FANVUE_URL,
-                        "message": "That conversation belongs on Fanvue.",
-                    })
-                    await websocket.close(code=1008)
-                    return
+            if not user_message:
+                continue
 
-                # Load or create conversation
-                convo = None
-                if conversation_id:
-                    result = await db.execute(
-                        select(Conversation).where(
-                            Conversation.conversation_id == UUID(conversation_id),
-                            Conversation.user_id == user.user_id,
-                        )
-                    )
-                    convo = result.scalar_one_or_none()
-
-                if not convo:
-                    await _check_conversation_limit(user, db)
-                    convo = Conversation(user_id=user.user_id, messages=[])
-                    db.add(convo)
-                    await db.flush()
-
-                # Build memory context
-                memory_context = await build_memory_context(user.user_id, db)
-
-                # Stream Claude's response
-                full_response = ""
-                async for token_chunk in claude_service.stream_response(
-                    user_message=user_message,
-                    conversation_history=convo.messages,
-                    memory_context=memory_context,
-                ):
-                    full_response += token_chunk
-                    await websocket.send_json({"type": "token", "content": token_chunk})
-
-                # Persist messages
-                new_messages = list(convo.messages)
-                new_messages.append({
-                    "role": "user",
-                    "content": user_message,
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "voice_used": msg.get("voice_used", False),
-                })
-                new_messages.append({
-                    "role": "assistant",
-                    "content": full_response,
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "voice_used": False,
-                })
-                convo.messages = new_messages
-
-                # Auto-generate title after first exchange
-                if len(new_messages) == 2 and not convo.title:
-                    convo.title = await claude_service.generate_conversation_title(new_messages)
-
-                await db.flush()
-
-                # Send done event
+            if is_adult_language(user_message):
                 await websocket.send_json({
-                    "type": "done",
-                    "conversation_id": str(convo.conversation_id),
-                    "full_response": full_response,
+                    "type": "redirect",
+                    "url": settings.FANVUE_URL,
+                    "message": "That conversation belongs on Fanvue.",
                 })
+                await websocket.close(code=1008)
+                return
 
-                # Respect explicit forget requests — skip extraction and purge
-                # any memories already saved from this conversation.
-                if _has_forget_intent(user_message):
-                    await db.execute(
-                        sql_delete(MemoryExtract).where(
-                            MemoryExtract.user_id == user.user_id,
-                            MemoryExtract.source_conversation_id == convo.conversation_id,
-                        )
-                    )
-                    await cache_delete(f"memory_context:{user.user_id}")
-                else:
-                    memories = await claude_service.extract_memories(new_messages[-8:])
-                    if memories:
-                        await save_extracted_memories(user.user_id, convo.conversation_id, memories, db)
+            uid = str(user.user_id)
 
-                await db.commit()
+            # Load existing conversation or create a new one
+            convo_messages: list = []
+            convo_title: str | None = None
 
-        except WebSocketDisconnect:
-            # End conversation on disconnect
-            async with AsyncSessionLocal() as end_db:
-                if convo:
-                    end_result = await end_db.execute(
-                        select(Conversation).where(Conversation.conversation_id == convo.conversation_id)
-                    )
-                    end_convo = end_result.scalar_one_or_none()
-                    if end_convo and not end_convo.date_ended:
-                        end_convo.date_ended = datetime.utcnow()
-                        await end_db.commit()
-        except Exception as e:
-            await websocket.send_json({"type": "error", "message": str(e)})
+            if conversation_id_str:
+                conv_r = await supa.table("conversations").select("*").eq("conversation_id", conversation_id_str).eq("user_id", uid).maybe_single().execute()
+                if conv_r.data:
+                    conversation_id = conversation_id_str
+                    convo_messages = conv_r.data.get("messages") or []
+                    convo_title = conv_r.data.get("title")
+
+            if not conversation_id:
+                await _check_conversation_limit(user, supa)
+                now = datetime.utcnow().isoformat()
+                conversation_id = str(uuid.uuid4())
+                await supa.table("conversations").insert({
+                    "conversation_id": conversation_id,
+                    "user_id": uid,
+                    "messages": [],
+                    "topics_discussed": [],
+                    "key_insights": [],
+                    "date_started": now,
+                    "created_at": now,
+                }).execute()
+
+            # Build memory context and stream response
+            memory_context = await build_memory_context(user.user_id, supa)
+
+            full_response = ""
+            async for token_chunk in claude_service.stream_response(
+                user_message=user_message,
+                conversation_history=convo_messages,
+                memory_context=memory_context,
+            ):
+                full_response += token_chunk
+                await websocket.send_json({"type": "token", "content": token_chunk})
+
+            # Append messages
+            new_messages = list(convo_messages)
+            new_messages.append({
+                "role": "user",
+                "content": user_message,
+                "timestamp": datetime.utcnow().isoformat(),
+                "voice_used": msg.get("voice_used", False),
+            })
+            new_messages.append({
+                "role": "assistant",
+                "content": full_response,
+                "timestamp": datetime.utcnow().isoformat(),
+                "voice_used": False,
+            })
+
+            update_data: dict = {"messages": new_messages}
+
+            # Auto-generate title after first exchange
+            if len(convo_messages) == 0 and not convo_title:
+                update_data["title"] = await claude_service.generate_conversation_title(new_messages)
+
+            await supa.table("conversations").update(update_data).eq("conversation_id", conversation_id).execute()
+
+            await websocket.send_json({
+                "type": "done",
+                "conversation_id": conversation_id,
+                "full_response": full_response,
+            })
+
+            # Memory handling
+            if _has_forget_intent(user_message):
+                await supa.table("memory_extracts").delete().eq("user_id", uid).eq("source_conversation_id", conversation_id).execute()
+                await cache_delete(f"memory_context:{uid}")
+            else:
+                memories = await claude_service.extract_memories(new_messages[-8:])
+                if memories:
+                    await save_extracted_memories(user.user_id, conversation_id, memories, supa)
+
+    except WebSocketDisconnect:
+        if conversation_id:
+            await supa.table("conversations").update({
+                "date_ended": datetime.utcnow().isoformat(),
+            }).eq("conversation_id", conversation_id).is_("date_ended", "null").execute()
+    except Exception as e:
+        await websocket.send_json({"type": "error", "message": str(e)})

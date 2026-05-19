@@ -1,44 +1,15 @@
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
+from supabase import create_async_client, AsyncClient
 from app.config import settings
 
-_db_url = settings.get_database_url()
-
-_is_supabase = "supabase.com" in _db_url
-_connect_args = (
-    {"ssl": "require", "prepared_statement_cache_size": 0}
-    if _is_supabase else {}
-)
-
-engine = create_async_engine(
-    _db_url,
-    echo=settings.ENVIRONMENT == "development",
-    pool_pre_ping=True,
-    pool_size=5 if _is_supabase else 10,
-    max_overflow=10 if _is_supabase else 20,
-    connect_args=_connect_args,
-)
-
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
+_supabase: AsyncClient | None = None
 
 
-class Base(DeclarativeBase):
-    pass
+async def init_supabase() -> None:
+    global _supabase
+    _supabase = await create_async_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
 
 
-async def get_db() -> AsyncSession:
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
+async def get_supabase() -> AsyncClient:
+    if _supabase is None:
+        await init_supabase()
+    return _supabase

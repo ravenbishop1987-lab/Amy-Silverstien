@@ -5,13 +5,12 @@ import bcrypt
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from supabase import AsyncClient
 from app.config import settings
-from app.database import get_db
+from app.database import get_supabase
+from app.models.user import UserRecord
 
 bearer_scheme = HTTPBearer()
-
 ALGORITHM = "HS256"
 
 
@@ -42,30 +41,29 @@ def decode_token(token: str) -> dict:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    db: AsyncSession = Depends(get_db),
-):
-    from app.models.user import User
+    supa: AsyncClient = Depends(get_supabase),
+) -> UserRecord:
     payload = decode_token(credentials.credentials)
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
 
-    result = await db.execute(select(User).where(User.user_id == UUID(user_id)))
-    user = result.scalar_one_or_none()
-    if not user:
+    result = await supa.table("users").select("*").eq("user_id", user_id).maybe_single().execute()
+    if not result.data:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    return user
+    return UserRecord.from_row(result.data)
 
 
-async def get_current_user_ws(token: str, db: AsyncSession) -> Optional[object]:
-    """Used for WebSocket authentication where we can't use Depends."""
-    from app.models.user import User
+async def get_current_user_ws(token: str, supa: AsyncClient) -> Optional[UserRecord]:
+    """WebSocket auth — can't use Depends, so we call directly."""
     try:
         payload = decode_token(token)
         user_id = payload.get("sub")
         if not user_id:
             return None
-        result = await db.execute(select(User).where(User.user_id == UUID(user_id)))
-        return result.scalar_one_or_none()
+        result = await supa.table("users").select("*").eq("user_id", user_id).maybe_single().execute()
+        if not result.data:
+            return None
+        return UserRecord.from_row(result.data)
     except Exception:
         return None

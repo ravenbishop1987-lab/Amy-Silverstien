@@ -1,43 +1,41 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, text
-from app.database import get_db
-from app.models.user import User, SubscriptionTier
-from app.models.conversation import Conversation
+from supabase import AsyncClient
+from app.database import get_supabase
+from app.models.user import UserRecord
 from app.utils.auth import get_current_user
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-ADMIN_EMAILS = {"kevin.dill@gmail.com"}  # Add admin emails here
+ADMIN_EMAILS = {"kevin.dill@gmail.com"}
 
 
-def _require_admin(user: User):
+def _require_admin(user: UserRecord):
     if user.email not in ADMIN_EMAILS:
         raise HTTPException(status_code=403, detail="Admin access required")
 
 
 @router.get("/metrics")
 async def get_metrics(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
     _require_admin(current_user)
 
-    total_users = (await db.execute(select(func.count(User.user_id)))).scalar()
-    free_users = (await db.execute(select(func.count(User.user_id)).where(User.subscription_tier == SubscriptionTier.free))).scalar()
-    credits_users = (await db.execute(select(func.count(User.user_id)).where(User.subscription_tier == SubscriptionTier.credits))).scalar()
-    premium_users = (await db.execute(select(func.count(User.user_id)).where(User.subscription_tier == SubscriptionTier.premium))).scalar()
-    total_conversations = (await db.execute(select(func.count(Conversation.conversation_id)))).scalar()
+    total_r = await supa.table("users").select("*", count="exact").execute()
+    free_r = await supa.table("users").select("*", count="exact").eq("subscription_tier", "free").execute()
+    credits_r = await supa.table("users").select("*", count="exact").eq("subscription_tier", "credits").execute()
+    premium_r = await supa.table("users").select("*", count="exact").eq("subscription_tier", "premium").execute()
+    convos_r = await supa.table("conversations").select("*", count="exact").execute()
 
     return {
         "users": {
-            "total": total_users,
-            "free": free_users,
-            "credits": credits_users,
-            "premium": premium_users,
+            "total": total_r.count or 0,
+            "free": free_r.count or 0,
+            "credits": credits_r.count or 0,
+            "premium": premium_r.count or 0,
         },
         "conversations": {
-            "total": total_conversations,
+            "total": convos_r.count or 0,
         },
     }
 
@@ -46,21 +44,18 @@ async def get_metrics(
 async def list_users(
     skip: int = 0,
     limit: int = 50,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
     _require_admin(current_user)
-    result = await db.execute(
-        select(User).order_by(User.created_at.desc()).offset(skip).limit(limit)
-    )
-    users = result.scalars().all()
+    result = await supa.table("users").select("user_id,email,subscription_tier,created_at,last_login").order("created_at", desc=True).range(skip, skip + limit - 1).execute()
     return [
         {
-            "user_id": str(u.user_id),
-            "email": u.email,
-            "tier": u.subscription_tier,
-            "created_at": u.created_at.isoformat(),
-            "last_login": u.last_login.isoformat() if u.last_login else None,
+            "user_id": u["user_id"],
+            "email": u["email"],
+            "tier": u["subscription_tier"],
+            "created_at": u["created_at"],
+            "last_login": u.get("last_login"),
         }
-        for u in users
+        for u in (result.data or [])
     ]

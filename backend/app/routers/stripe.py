@@ -1,10 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from app.database import get_db
-from app.models.user import User
-from app.models.subscription import VoiceCredit
+from supabase import AsyncClient
+from app.database import get_supabase
+from app.models.user import UserRecord
 from app.services.stripe_service import stripe_service
 from app.utils.auth import get_current_user
 
@@ -27,36 +25,36 @@ class GiftConfirmRequest(BaseModel):
 
 @router.post("/subscribe", response_model=CheckoutResponse)
 async def create_subscription(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
-    url = await stripe_service.create_subscription_checkout(current_user, db)
+    url = await stripe_service.create_subscription_checkout(current_user, supa)
     return CheckoutResponse(checkout_url=url)
 
 
 @router.post("/credits/single", response_model=CheckoutResponse)
 async def buy_single_credits(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
-    url = await stripe_service.create_credits_checkout(current_user, bulk=False, db=db)
+    url = await stripe_service.create_credits_checkout(current_user, bulk=False, supa=supa)
     return CheckoutResponse(checkout_url=url)
 
 
 @router.post("/credits/bulk", response_model=CheckoutResponse)
 async def buy_bulk_credits(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
-    url = await stripe_service.create_credits_checkout(current_user, bulk=True, db=db)
+    url = await stripe_service.create_credits_checkout(current_user, bulk=True, supa=supa)
     return CheckoutResponse(checkout_url=url)
 
 
 @router.post("/gifts/checkout", response_model=CheckoutResponse)
 async def create_gift_checkout(
     data: GiftCheckoutRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
     try:
         url = await stripe_service.create_gift_checkout(
@@ -64,7 +62,7 @@ async def create_gift_checkout(
             data.gift_type,
             data.personal_message.strip(),
             data.conversation_id,
-            db,
+            supa,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -74,47 +72,46 @@ async def create_gift_checkout(
 @router.post("/gifts/confirm")
 async def confirm_gift_checkout(
     data: GiftConfirmRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
     try:
-        gift = await stripe_service.confirm_gift_checkout(data.session_id, current_user, db)
+        gift = await stripe_service.confirm_gift_checkout(data.session_id, current_user, supa)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-    await db.commit()
     return gift
 
 
 @router.delete("/subscription", status_code=204)
 async def cancel_subscription(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
-    success = await stripe_service.cancel_subscription(current_user, db)
+    success = await stripe_service.cancel_subscription(current_user, supa)
     if not success:
         raise HTTPException(status_code=400, detail="No active subscription found")
 
 
 @router.get("/status")
 async def subscription_status(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
 ):
-    vc_result = await db.execute(select(VoiceCredit).where(VoiceCredit.user_id == current_user.user_id))
-    vc = vc_result.scalar_one_or_none()
+    vc_r = await supa.table("voice_credits").select("*").eq("user_id", str(current_user.user_id)).maybe_single().execute()
+    vc = vc_r.data
 
     return {
         "tier": current_user.subscription_tier,
-        "voice_conversations_remaining": vc.voice_conversations_remaining if vc else 0,
-        "text_conversations_remaining": vc.text_conversations_remaining if vc else 0,
+        "voice_conversations_remaining": vc["voice_conversations_remaining"] if vc else 0,
+        "text_conversations_remaining": vc["text_conversations_remaining"] if vc else 0,
     }
 
 
 @router.post("/webhook")
-async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+async def stripe_webhook(request: Request, supa: AsyncClient = Depends(get_supabase)):
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
-    result = await stripe_service.handle_webhook(payload, sig_header, db)
+    result = await stripe_service.handle_webhook(payload, sig_header, supa)
     if result.get("status") == "invalid_signature":
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
     return result
