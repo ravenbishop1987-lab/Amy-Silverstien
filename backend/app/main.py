@@ -1,7 +1,9 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
+
 from app.config import settings
 from app.database import init_supabase
 from app.routers import auth, conversations, memory, voice, stripe, embed, admin
@@ -25,14 +27,19 @@ app.add_middleware(
     allow_origins=[
         settings.FRONTEND_URL,
         settings.WIDGET_URL,
+        "https://amy-silverstien-1.onrender.com",
+        "https://amy-silverstien.onrender.com",
+        "https://amy-silverstien-backend.onrender.com",
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:5174",
     ],
+    allow_origin_regex=r"https://.*\.onrender\.com",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 app.include_router(auth.router)
 app.include_router(conversations.router)
