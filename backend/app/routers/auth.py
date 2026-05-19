@@ -1,4 +1,5 @@
 import uuid
+import logging
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from supabase import AsyncClient
@@ -8,41 +9,51 @@ from app.schemas.user import UserCreate, UserLogin, Token, UserResponse, UserPro
 from app.utils.auth import hash_password, verify_password, create_access_token, get_current_user
 from app.utils.rate_limiter import cache_delete
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
-    existing = await supa.table("users").select("user_id").eq("email", data.email).maybe_single().execute()
+    try:
+        existing = await supa.table("users").select("user_id").eq("email", data.email).maybe_single().execute()
+    except Exception as exc:
+        logger.error(f"Register check failed: {exc}")
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable")
+
     if existing.data:
         raise HTTPException(status_code=400, detail="Email already registered")
 
     user_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
 
-    await supa.table("users").insert({
-        "user_id": user_id,
-        "email": data.email,
-        "password_hash": hash_password(data.password),
-        "subscription_tier": SubscriptionTier.free.value,
-        "created_at": now,
-        "updated_at": now,
-    }).execute()
+    try:
+        await supa.table("users").insert({
+            "user_id": user_id,
+            "email": data.email,
+            "password_hash": hash_password(data.password),
+            "subscription_tier": SubscriptionTier.free.value,
+            "created_at": now,
+            "updated_at": now,
+        }).execute()
 
-    await supa.table("user_profiles").insert({
-        "profile_id": str(uuid.uuid4()),
-        "user_id": user_id,
-        "preferred_name": data.preferred_name,
-        "attachment_style": AttachmentStyle.unknown.value,
-        "communication_preference": CommunicationPreference.text.value,
-    }).execute()
+        await supa.table("user_profiles").insert({
+            "profile_id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "preferred_name": data.preferred_name,
+            "attachment_style": AttachmentStyle.unknown.value,
+            "communication_preference": CommunicationPreference.text.value,
+        }).execute()
 
-    await supa.table("voice_credits").insert({
-        "credit_id": str(uuid.uuid4()),
-        "user_id": user_id,
-        "text_conversations_remaining": 3,
-        "voice_conversations_remaining": 0,
-    }).execute()
+        await supa.table("voice_credits").insert({
+            "credit_id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "text_conversations_remaining": 3,
+            "voice_conversations_remaining": 0,
+        }).execute()
+    except Exception as exc:
+        logger.error(f"Register insert failed for {data.email}: {exc}")
+        raise HTTPException(status_code=503, detail="Registration failed — please try again")
 
     token = create_access_token(user_id)
     return Token(access_token=token, user_id=user_id, subscription_tier=SubscriptionTier.free)
@@ -50,18 +61,31 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
 
 @router.post("/login", response_model=Token)
 async def login(data: UserLogin, supa: AsyncClient = Depends(get_supabase)):
-    result = await supa.table("users").select("*").eq("email", data.email).maybe_single().execute()
+    try:
+        result = await supa.table("users").select("*").eq("email", data.email).maybe_single().execute()
+    except Exception as exc:
+        logger.error(f"Login query failed for {data.email}: {exc}")
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable")
+
     user = result.data
-    if not user or not verify_password(data.password, user["password_hash"]):
+    if not user or not verify_password(data.password, user.get("password_hash")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    await supa.table("users").update({"last_login": datetime.utcnow().isoformat()}).eq("user_id", user["user_id"]).execute()
+    try:
+        await supa.table("users").update({"last_login": datetime.utcnow().isoformat()}).eq("user_id", user["user_id"]).execute()
+    except Exception:
+        pass  # non-critical
+
+    try:
+        tier = SubscriptionTier(user.get("subscription_tier", "free"))
+    except ValueError:
+        tier = SubscriptionTier.free
 
     token = create_access_token(user["user_id"])
     return Token(
         access_token=token,
         user_id=user["user_id"],
-        subscription_tier=SubscriptionTier(user.get("subscription_tier", "free")),
+        subscription_tier=tier,
     )
 
 

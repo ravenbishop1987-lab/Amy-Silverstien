@@ -128,6 +128,8 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const recognitionRunningRef = useRef(false)
   const sendMessageRef = useRef<(text: string, voiceUsed?: boolean) => Promise<void>>(async () => {})
+  const speechDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const accumulatedTranscriptRef = useRef('')
   const isBusyRef = useRef(false)
   const isSpeakingRef = useRef(isSpeaking)
   const streamingContentRef = useRef(streamingContent)
@@ -181,6 +183,9 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
     recognitionRef.current?.stop()
     setIsListening(false)
     setIsSpeaking(true)
+    // Cancel any pending debounced send — Amy's voice must never trigger a message
+    if (speechDebounceRef.current) { clearTimeout(speechDebounceRef.current); speechDebounceRef.current = null }
+    accumulatedTranscriptRef.current = ''
 
     try {
       const buffer = await voiceApi.synthesize(content)
@@ -361,20 +366,27 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
       recognition.interimResults = false
       recognition.lang = 'en-US'
       recognition.onresult = (event) => {
-        let transcript = ''
         for (let i = event.resultIndex; i < event.results.length; i += 1) {
           const result = event.results[i]
           if (result.isFinal) {
-            transcript += result[0].transcript
+            accumulatedTranscriptRef.current += result[0].transcript
           }
         }
 
-        const text = transcript.trim()
-        if (!text || isBusyRef.current || isSpeakingRef.current) return
-        recognitionRunningRef.current = false
-        setIsListening(false)
-        recognitionRef.current?.stop()
-        void sendMessageRef.current(text, true)
+        if (!accumulatedTranscriptRef.current.trim() || isBusyRef.current || isSpeakingRef.current) return
+
+        // Wait 2 seconds of silence before sending — prevents cutting the user off mid-sentence
+        if (speechDebounceRef.current) clearTimeout(speechDebounceRef.current)
+        speechDebounceRef.current = setTimeout(() => {
+          const text = accumulatedTranscriptRef.current.trim()
+          accumulatedTranscriptRef.current = ''
+          speechDebounceRef.current = null
+          if (!text || isBusyRef.current || isSpeakingRef.current) return
+          recognitionRunningRef.current = false
+          setIsListening(false)
+          recognitionRef.current?.stop()
+          void sendMessageRef.current(text, true)
+        }, 2000)
       }
       recognition.onerror = (event) => {
         recognitionRunningRef.current = false
@@ -389,7 +401,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
         setIsListening(false)
         if (voiceCallActiveRef.current && !mutedRef.current && !isBusyRef.current && !isSpeakingRef.current) {
           // 900ms delay gives audio output time to fully stop before mic reopens
-          window.setTimeout(() => startListening(), 900)
+          window.setTimeout(() => startListening(), 2000)
         }
       }
       recognitionRef.current = recognition

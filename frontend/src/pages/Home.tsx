@@ -48,22 +48,36 @@ export default function Home() {
       </nav>
 
       {/* Hero */}
-      <section className="max-w-3xl mx-auto px-6 pt-20 pb-16 text-center">
-        <div className="inline-flex items-center gap-2 bg-sage-100 text-sage-700 text-xs font-medium px-3 py-1.5 rounded-full mb-6">
-          ✨ AI dating advice that actually gets it
-        </div>
-        <h2 className="font-serif text-5xl md:text-6xl text-charcoal-900 leading-tight mb-6">
-          The advice you wish<br />your best friend had
-        </h2>
-        <p className="text-stone-500 text-lg leading-relaxed max-w-xl mx-auto mb-10">
-          Amy is your AI companion for dating and relationships. She remembers your story,
-          recognizes your patterns, celebrates your wins — and gives you real advice, not platitudes.
-        </p>
-        <div className="flex items-center justify-center gap-4 flex-wrap">
-          <Link to="/signup" className="btn-primary text-base px-8 py-3">
-            Chat with Amy for free
-          </Link>
-          <p className="text-xs text-stone-400">3 free conversations/day. No credit card.</p>
+      <section className="max-w-5xl mx-auto px-6 pt-12 pb-16">
+        <div className="flex items-stretch gap-10 md:gap-14">
+          {/* Amy portrait */}
+          <div className="hidden md:block w-56 lg:w-72 flex-shrink-0 rounded-2xl overflow-hidden shadow-soft">
+            <img
+              src="/amy-portrait.png"
+              alt="Amy"
+              className="w-full h-full object-cover object-top"
+            />
+          </div>
+
+          {/* Text content */}
+          <div className="flex-1 flex flex-col justify-center">
+            <div className="inline-flex items-center gap-2 bg-sage-100 text-sage-700 text-xs font-medium px-3 py-1.5 rounded-full mb-6 self-start">
+              ✨ AI dating advice that actually gets it
+            </div>
+            <h2 className="font-serif text-5xl md:text-6xl text-charcoal-900 leading-tight mb-6">
+              The advice you wish<br />your best friend had
+            </h2>
+            <p className="text-stone-500 text-lg leading-relaxed max-w-xl mb-10">
+              Amy is your AI companion for dating and relationships. She remembers your story,
+              recognizes your patterns, celebrates your wins — and gives you real advice, not platitudes.
+            </p>
+            <div className="flex items-center gap-4 flex-wrap">
+              <Link to="/signup" className="btn-primary text-base px-8 py-3">
+                Chat with Amy for free
+              </Link>
+              <p className="text-xs text-stone-400">3 free conversations/day. No credit card.</p>
+            </div>
+          </div>
         </div>
       </section>
 

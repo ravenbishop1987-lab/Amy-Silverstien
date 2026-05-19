@@ -18,8 +18,13 @@ def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
-def verify_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode(), hashed.encode())
+def verify_password(plain: str, hashed: str | None) -> bool:
+    if not hashed:
+        return False
+    try:
+        return bcrypt.checkpw(plain.encode(), hashed.encode())
+    except Exception:
+        return False
 
 
 def create_access_token(user_id: str, expires_delta: Optional[timedelta] = None) -> str:
