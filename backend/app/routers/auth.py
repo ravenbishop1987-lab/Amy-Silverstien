@@ -56,7 +56,7 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
         raise HTTPException(status_code=503, detail="Registration failed — please try again")
 
     token = create_access_token(user_id)
-    return Token(access_token=token, user_id=user_id, subscription_tier=SubscriptionTier.free)
+    return Token(access_token=token, user_id=user_id, email=data.email, subscription_tier=SubscriptionTier.free)
 
 
 @router.post("/login", response_model=Token)
@@ -85,6 +85,7 @@ async def login(data: UserLogin, supa: AsyncClient = Depends(get_supabase)):
     return Token(
         access_token=token,
         user_id=user["user_id"],
+        email=user["email"],
         subscription_tier=tier,
     )
 

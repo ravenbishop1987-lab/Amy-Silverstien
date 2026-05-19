@@ -20,6 +20,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user_id: str
+    email: str
     subscription_tier: SubscriptionTier
 
 

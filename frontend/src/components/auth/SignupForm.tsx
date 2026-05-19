@@ -4,7 +4,6 @@ import { Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
-import type { User } from '@/types'
 
 export default function SignupForm() {
   const [name, setName] = useState('')
@@ -24,13 +23,16 @@ export default function SignupForm() {
     setLoading(true)
     try {
       const { data } = await authApi.register(email, password, name || undefined)
-      localStorage.setItem('amy_token', data.access_token)
-      const meRes = await authApi.me()
-      setAuth(data.access_token, meRes.data as User)
+      setAuth(data.access_token, {
+        user_id: data.user_id,
+        email: data.email,
+        subscription_tier: data.subscription_tier,
+        created_at: new Date().toISOString(),
+        profile: null,
+      })
       toast.success("Let's go! Amy's ready to chat.")
       navigate('/chat')
     } catch (err: unknown) {
-      localStorage.removeItem('amy_token')
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       toast.error(typeof msg === 'string' ? msg : 'Could not create account. Try again!')
     } finally {

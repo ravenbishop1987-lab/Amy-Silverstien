@@ -19,9 +19,12 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('amy_token')
-      localStorage.removeItem('amy_user')
-      window.location.href = '/login'
+      const onAuthPage = ['/login', '/signup'].includes(window.location.pathname)
+      if (!onAuthPage) {
+        localStorage.removeItem('amy_token')
+        localStorage.removeItem('amy_user')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

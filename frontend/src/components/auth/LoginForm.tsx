@@ -4,7 +4,6 @@ import { Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
-import type { User } from '@/types'
 
 export default function LoginForm() {
   const [email, setEmail] = useState('')
@@ -19,13 +18,16 @@ export default function LoginForm() {
     setLoading(true)
     try {
       const { data } = await authApi.login(email, password)
-      localStorage.setItem('amy_token', data.access_token)
-      const meRes = await authApi.me()
-      setAuth(data.access_token, meRes.data as User)
+      setAuth(data.access_token, {
+        user_id: data.user_id,
+        email: data.email,
+        subscription_tier: data.subscription_tier,
+        created_at: new Date().toISOString(),
+        profile: null,
+      })
       toast.success('Welcome back!')
       navigate('/chat')
     } catch (err: unknown) {
-      localStorage.removeItem('amy_token')
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
       toast.error(msg || 'Invalid email or password')
     } finally {
