@@ -109,7 +109,7 @@ export default function AmyWidget({ embedId }: Props) {
   const getToken = useCallback(async (): Promise<string | null> => {
     if (token) return token
     // Check if user is logged in via localStorage (shared origin) or iframe message
-    const stored = localStorage.getItem('amy_token')
+    const stored = localStorage.getItem('token')
     if (stored) { setToken(stored); return stored }
     return null
   }, [token])

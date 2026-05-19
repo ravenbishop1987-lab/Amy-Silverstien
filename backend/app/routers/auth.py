@@ -15,18 +15,24 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
+    logger.info(f"[register] attempt: {data.email}")
+
+    # 1. Duplicate-email check
     try:
         existing = await supa.table("users").select("user_id").eq("email", data.email).maybe_single().execute()
     except Exception as exc:
-        logger.error(f"Register check failed: {exc}")
+        logger.error(f"[register] email-check DB error: {exc}")
         raise HTTPException(status_code=503, detail="Service temporarily unavailable")
 
     if existing.data:
+        logger.info(f"[register] duplicate email: {data.email}")
         raise HTTPException(status_code=400, detail="Email already registered")
 
     user_id = str(uuid.uuid4())
     now = datetime.utcnow().isoformat()
+    logger.info(f"[register] inserting user {user_id}")
 
+    # 2. Core inserts — users + user_profiles (required)
     try:
         await supa.table("users").insert({
             "user_id": user_id,
@@ -36,6 +42,7 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
             "created_at": now,
             "updated_at": now,
         }).execute()
+        logger.info(f"[register] users row created for {user_id}")
 
         await supa.table("user_profiles").insert({
             "profile_id": str(uuid.uuid4()),
@@ -44,10 +51,14 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
             "attachment_style": AttachmentStyle.unknown.value,
             "communication_preference": CommunicationPreference.text.value,
         }).execute()
+        logger.info(f"[register] user_profiles row created for {user_id}")
+    except HTTPException:
+        raise
     except Exception as exc:
-        logger.error(f"Register insert failed for {data.email}: {exc}")
+        logger.error(f"[register] core insert failed for {data.email}: {type(exc).__name__}: {exc}")
         raise HTTPException(status_code=503, detail="Registration failed — please try again")
 
+    # 3. voice_credits insert — optional, non-fatal
     try:
         await supa.table("voice_credits").insert({
             "credit_id": str(uuid.uuid4()),
@@ -56,10 +67,22 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
             "voice_conversations_remaining": 0,
         }).execute()
     except Exception as exc:
-        logger.warning(f"voice_credits insert failed for {user_id} (table may not exist): {exc}")
+        logger.warning(f"[register] voice_credits insert skipped for {user_id}: {exc}")
 
-    token = create_access_token(user_id)
-    return Token(access_token=token, user_id=user_id, email=data.email, subscription_tier=SubscriptionTier.free)
+    # 4. Build and return token
+    try:
+        token = create_access_token(user_id)
+        response = Token(
+            access_token=token,
+            user_id=user_id,
+            email=data.email,
+            subscription_tier=SubscriptionTier.free,
+        )
+        logger.info(f"[register] success for {data.email}")
+        return response
+    except Exception as exc:
+        logger.error(f"[register] token creation failed for {user_id}: {exc}")
+        raise HTTPException(status_code=500, detail="Registration failed unexpectedly")
 
 
 @router.post("/login", response_model=Token)
