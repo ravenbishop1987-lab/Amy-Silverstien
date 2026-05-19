@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { MessageCircle, Brain, History, Settings, LogOut } from 'lucide-react'
+import { MessageCircle, Brain, History, Settings, LogOut, LogIn } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth'
 
 const navItems = [
@@ -12,6 +12,7 @@ const navItems = [
 export default function Layout() {
   const { user, logout } = useAuthStore()
   const navigate = useNavigate()
+  const visibleNavItems = user ? navItems : navItems.filter((item) => item.to === '/chat')
 
   const handleLogout = () => {
     logout()
@@ -26,7 +27,7 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 space-y-2">
-          {navItems.map(({ to, icon: Icon, label }) => (
+          {visibleNavItems.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
@@ -45,13 +46,23 @@ export default function Layout() {
         </nav>
 
         <div className="border-t border-cream-300 pt-3">
-          <button
-            onClick={handleLogout}
-            className="h-10 w-10 flex items-center justify-center rounded-xl text-stone-400 hover:text-charcoal-800 hover:bg-cream-200 transition-all"
-            title={`Sign out${user?.email ? ` (${user.email})` : ''}`}
-          >
-            <LogOut size={16} />
-          </button>
+          {user ? (
+            <button
+              onClick={handleLogout}
+              className="h-10 w-10 flex items-center justify-center rounded-xl text-stone-400 hover:text-charcoal-800 hover:bg-cream-200 transition-all"
+              title={`Sign out${user.email ? ` (${user.email})` : ''}`}
+            >
+              <LogOut size={16} />
+            </button>
+          ) : (
+            <button
+              onClick={() => navigate('/chat')}
+              className="h-10 w-10 flex items-center justify-center rounded-xl text-stone-400 hover:text-charcoal-800 hover:bg-cream-200 transition-all"
+              title="Sign in"
+            >
+              <LogIn size={16} />
+            </button>
+          )}
         </div>
       </aside>
 
@@ -59,8 +70,11 @@ export default function Layout() {
         <Outlet />
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-cream-300 bg-white sm:hidden">
-        {navItems.map(({ to, icon: Icon, label }) => (
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 grid border-t border-cream-300 bg-white sm:hidden"
+        style={{ gridTemplateColumns: `repeat(${visibleNavItems.length}, minmax(0, 1fr))` }}
+      >
+        {visibleNavItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}

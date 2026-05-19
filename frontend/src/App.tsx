@@ -22,7 +22,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     )
   }
-  if (!token) return <Navigate to="/login" replace />
+  if (!token) return <Navigate to="/chat" replace />
   return <>{children}</>
 }
 
@@ -49,8 +49,8 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route element={<Layout />}>
-          <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
-          <Route path="/chat/:conversationId" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+          <Route path="/chat" element={<Chat />} />
+          <Route path="/chat/:conversationId" element={<Chat />} />
           <Route path="/memory" element={<ProtectedRoute><Memory /></ProtectedRoute>} />
           <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
