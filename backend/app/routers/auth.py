@@ -45,7 +45,6 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
                 "user_id": user_id,
                 "email": data.email,
                 "password_hash": hash_password(data.password),
-                "subscription_tier": SubscriptionTier.free.value,
             }).execute()
             logger.info("[register] users row created")
         except Exception as exc:
