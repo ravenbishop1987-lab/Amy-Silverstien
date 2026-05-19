@@ -29,36 +29,35 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
         raise HTTPException(status_code=400, detail="Email already registered")
 
     user_id = str(uuid.uuid4())
-    now = datetime.utcnow().isoformat()
     logger.info(f"[register] inserting user {user_id}")
 
-    # 2. Core inserts — users + user_profiles (required)
+    # 2. users INSERT — only required fields; let DB defaults handle created_at/updated_at
     try:
         await supa.table("users").insert({
             "user_id": user_id,
             "email": data.email,
             "password_hash": hash_password(data.password),
             "subscription_tier": SubscriptionTier.free.value,
-            "created_at": now,
-            "updated_at": now,
         }).execute()
-        logger.info(f"[register] users row created for {user_id}")
-
-        await supa.table("user_profiles").insert({
-            "profile_id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "preferred_name": data.preferred_name,
-            "attachment_style": AttachmentStyle.unknown.value,
-            "communication_preference": CommunicationPreference.text.value,
-        }).execute()
-        logger.info(f"[register] user_profiles row created for {user_id}")
-    except HTTPException:
-        raise
+        logger.info(f"[register] users row created")
     except Exception as exc:
-        logger.error(f"[register] core insert failed for {data.email}: {type(exc).__name__}: {exc}")
+        logger.error(f"[register] users insert failed: {type(exc).__name__}: {exc}")
         raise HTTPException(status_code=503, detail="Registration failed — please try again")
 
-    # 3. voice_credits insert — optional, non-fatal
+    # 3. user_profiles INSERT — non-fatal (enum columns may not exist if schema not fully applied)
+    try:
+        profile_row: dict = {
+            "profile_id": str(uuid.uuid4()),
+            "user_id": user_id,
+        }
+        if data.preferred_name:
+            profile_row["preferred_name"] = data.preferred_name
+        await supa.table("user_profiles").insert(profile_row).execute()
+        logger.info(f"[register] user_profiles row created")
+    except Exception as exc:
+        logger.warning(f"[register] user_profiles insert skipped: {type(exc).__name__}: {exc}")
+
+    # 4. voice_credits INSERT — non-fatal
     try:
         await supa.table("voice_credits").insert({
             "credit_id": str(uuid.uuid4()),
@@ -66,8 +65,9 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
             "text_conversations_remaining": 3,
             "voice_conversations_remaining": 0,
         }).execute()
+        logger.info(f"[register] voice_credits row created")
     except Exception as exc:
-        logger.warning(f"[register] voice_credits insert skipped for {user_id}: {exc}")
+        logger.warning(f"[register] voice_credits insert skipped: {type(exc).__name__}: {exc}")
 
     # 4. Build and return token
     try:
