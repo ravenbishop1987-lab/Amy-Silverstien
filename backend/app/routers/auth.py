@@ -44,7 +44,11 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
             "attachment_style": AttachmentStyle.unknown.value,
             "communication_preference": CommunicationPreference.text.value,
         }).execute()
+    except Exception as exc:
+        logger.error(f"Register insert failed for {data.email}: {exc}")
+        raise HTTPException(status_code=503, detail="Registration failed — please try again")
 
+    try:
         await supa.table("voice_credits").insert({
             "credit_id": str(uuid.uuid4()),
             "user_id": user_id,
@@ -52,8 +56,7 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
             "voice_conversations_remaining": 0,
         }).execute()
     except Exception as exc:
-        logger.error(f"Register insert failed for {data.email}: {exc}")
-        raise HTTPException(status_code=503, detail="Registration failed — please try again")
+        logger.warning(f"voice_credits insert failed for {user_id} (table may not exist): {exc}")
 
     token = create_access_token(user_id)
     return Token(access_token=token, user_id=user_id, email=data.email, subscription_tier=SubscriptionTier.free)

@@ -34,7 +34,7 @@ export default function App() {
   useEffect(() => {
     loadFromStorage()
 
-    const token = localStorage.getItem('amy_token')
+    const token = localStorage.getItem('token')
     if (!token) return
 
     authApi.me()
