@@ -3,11 +3,15 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from supabase import AsyncClient
 
+from app.config import settings
 from app.database import get_supabase
 from app.models.user import UserRecord, SubscriptionTier
 from app.schemas.user import (
+    GoogleLogin,
     Token,
     UserCreate,
     UserLogin,
@@ -20,6 +24,51 @@ from app.utils.rate_limiter import cache_delete
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _token_payload(user_id: str, email: str, tier: str | None = None) -> dict:
+    try:
+        subscription_tier = SubscriptionTier(tier or SubscriptionTier.free.value)
+    except ValueError:
+        subscription_tier = SubscriptionTier.free
+
+    return {
+        "access_token": create_access_token(user_id),
+        "token_type": "bearer",
+        "user_id": user_id,
+        "email": email,
+        "subscription_tier": subscription_tier.value,
+    }
+
+
+async def _create_default_profile_and_credits(
+    supa: AsyncClient,
+    user_id: str,
+    preferred_name: str | None = None,
+    log_prefix: str = "auth",
+) -> None:
+    try:
+        profile_row: dict = {
+            "profile_id": str(uuid.uuid4()),
+            "user_id": user_id,
+        }
+        if preferred_name:
+            profile_row["preferred_name"] = preferred_name
+        await supa.table("user_profiles").insert(profile_row).execute()
+        logger.info("[%s] user_profiles row created", log_prefix)
+    except Exception as exc:
+        logger.warning("[%s] user_profiles insert skipped: %s: %s", log_prefix, type(exc).__name__, exc)
+
+    try:
+        await supa.table("voice_credits").insert({
+            "credit_id": str(uuid.uuid4()),
+            "user_id": user_id,
+            "text_conversations_remaining": 3,
+            "voice_conversations_remaining": 0,
+        }).execute()
+        logger.info("[%s] voice_credits row created", log_prefix)
+    except Exception as exc:
+        logger.warning("[%s] voice_credits insert skipped: %s: %s", log_prefix, type(exc).__name__, exc)
 
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
@@ -51,40 +100,10 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
             logger.exception(f"[register] users insert failed for {data.email}: {type(exc).__name__}: {exc}")
             raise HTTPException(status_code=503, detail="Registration failed - please try again")
 
-        # Non-fatal: older deployed databases may not have every profile column yet.
-        try:
-            profile_row: dict = {
-                "profile_id": str(uuid.uuid4()),
-                "user_id": user_id,
-            }
-            if data.preferred_name:
-                profile_row["preferred_name"] = data.preferred_name
-            await supa.table("user_profiles").insert(profile_row).execute()
-            logger.info("[register] user_profiles row created")
-        except Exception as exc:
-            logger.warning(f"[register] user_profiles insert skipped: {type(exc).__name__}: {exc}")
+        await _create_default_profile_and_credits(supa, user_id, data.preferred_name, "register")
 
-        # Non-fatal: signup should still succeed if credits are created later.
-        try:
-            await supa.table("voice_credits").insert({
-                "credit_id": str(uuid.uuid4()),
-                "user_id": user_id,
-                "text_conversations_remaining": 3,
-                "voice_conversations_remaining": 0,
-            }).execute()
-            logger.info("[register] voice_credits row created")
-        except Exception as exc:
-            logger.warning(f"[register] voice_credits insert skipped: {type(exc).__name__}: {exc}")
-
-        token = create_access_token(user_id)
         logger.info(f"[register] success for {data.email}")
-        return {
-            "access_token": token,
-            "token_type": "bearer",
-            "user_id": user_id,
-            "email": data.email,
-            "subscription_tier": SubscriptionTier.free.value,
-        }
+        return _token_payload(user_id, data.email)
     except HTTPException:
         raise
     except Exception as exc:
@@ -115,19 +134,72 @@ async def login(data: UserLogin, supa: AsyncClient = Depends(get_supabase)):
         except ValueError:
             tier = SubscriptionTier.free
 
-        token = create_access_token(user["user_id"])
-        return {
-            "access_token": token,
-            "token_type": "bearer",
-            "user_id": user["user_id"],
-            "email": user["email"],
-            "subscription_tier": tier.value,
-        }
+        return _token_payload(user["user_id"], user["email"], tier.value)
     except HTTPException:
         raise
     except Exception as exc:
         logger.exception(f"[login] unexpected failure for {data.email}: {exc}")
         raise HTTPException(status_code=503, detail="Login failed - please try again")
+
+
+@router.post("/google", response_model=Token)
+async def google_login(data: GoogleLogin, supa: AsyncClient = Depends(get_supabase)):
+    if not settings.GOOGLE_CLIENT_ID:
+        logger.error("[google-login] GOOGLE_CLIENT_ID is not configured")
+        raise HTTPException(status_code=503, detail="Google login is not configured")
+
+    try:
+        claims = google_id_token.verify_oauth2_token(
+            data.credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except ValueError as exc:
+        logger.warning(f"[google-login] invalid Google credential: {exc}")
+        raise HTTPException(status_code=401, detail="Invalid Google login")
+    except Exception as exc:
+        logger.exception(f"[google-login] verification failed: {exc}")
+        raise HTTPException(status_code=503, detail="Google login failed - please try again")
+
+    email = str(claims.get("email") or "").strip().lower()
+    if not email or not claims.get("email_verified"):
+        raise HTTPException(status_code=401, detail="Google account email is not verified")
+
+    preferred_name = str(claims.get("given_name") or claims.get("name") or "").strip() or None
+
+    try:
+        result = await supa.table("users").select("*").eq("email", email).maybe_single().execute()
+    except Exception as exc:
+        logger.exception(f"[google-login] user lookup failed for {email}: {exc}")
+        raise HTTPException(status_code=503, detail="Service temporarily unavailable")
+
+    user = result.data
+    if not user:
+        user_id = str(uuid.uuid4())
+        logger.info(f"[google-login] creating user {user_id} for {email}")
+        try:
+            insert = await supa.table("users").insert({
+                "user_id": user_id,
+                "email": email,
+                "password_hash": "",
+            }).execute()
+        except Exception as exc:
+            logger.exception(f"[google-login] users insert failed for {email}: {type(exc).__name__}: {exc}")
+            raise HTTPException(status_code=503, detail="Google login failed - please try again")
+
+        user = (insert.data or [{}])[0] or {
+            "user_id": user_id,
+            "email": email,
+            "subscription_tier": SubscriptionTier.free.value,
+        }
+        await _create_default_profile_and_credits(supa, user_id, preferred_name, "google-login")
+    else:
+        try:
+            await supa.table("users").update({"last_login": datetime.utcnow().isoformat()}).eq("user_id", user["user_id"]).execute()
+        except Exception as exc:
+            logger.warning(f"[google-login] last_login update skipped for {user['user_id']}: {type(exc).__name__}: {exc}")
+
+    return _token_payload(user["user_id"], user["email"], user.get("subscription_tier"))
 
 
 @router.get("/me", response_model=UserResponse)

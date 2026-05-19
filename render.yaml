@@ -13,6 +13,7 @@ services:
         value: https://amy-silverstien-1.onrender.com
       # Set these secrets in the Render dashboard → Environment:
       # SUPABASE_URL, SUPABASE_SERVICE_KEY, SECRET_KEY,
+      # GOOGLE_CLIENT_ID,
       # ANTHROPIC_API_KEY, ELEVENLABS_API_KEY,
       # STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 
@@ -22,6 +23,9 @@ services:
     runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
+    envVars:
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
     staticPublishPath: dist
     routes:
       - type: rewrite

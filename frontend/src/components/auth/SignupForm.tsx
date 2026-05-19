@@ -4,6 +4,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
+import GoogleAuthButton from './GoogleAuthButton'
 
 export default function SignupForm() {
   const [name, setName] = useState('')
@@ -42,6 +43,12 @@ export default function SignupForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <GoogleAuthButton mode="signup" />
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-stone-200" />
+        <span className="text-xs text-stone-400">or</span>
+        <div className="h-px flex-1 bg-stone-200" />
+      </div>
       <div>
         <label className="block text-sm font-medium text-charcoal-800 mb-1.5">
           First name <span className="text-stone-400 font-normal">(optional)</span>

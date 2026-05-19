@@ -4,6 +4,7 @@ supabase>=2.0.0
 pydantic==2.10.3
 pydantic-settings==2.6.1
 python-jose[cryptography]==3.3.0
+google-auth==2.35.0
 bcrypt==4.2.1
 python-multipart==0.0.19
 anthropic>=0.40.0

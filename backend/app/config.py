@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173"
     WIDGET_URL: str = "http://localhost:5174"
     FANVUE_URL: str = "https://www.fanvue.com/amysilverstein87"
+    GOOGLE_CLIENT_ID: str = ""
 
     # ── Supabase ───────────────────────────────────────────
     SUPABASE_URL: str = ""                 # https://your-ref.supabase.co

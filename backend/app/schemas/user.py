@@ -16,6 +16,10 @@ class UserLogin(BaseModel):
     password: str
 
 
+class GoogleLogin(BaseModel):
+    credential: str
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

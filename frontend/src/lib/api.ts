@@ -36,6 +36,8 @@ export const authApi = {
     api.post('/auth/register', { email, password, preferred_name }),
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }),
+  googleLogin: (credential: string) =>
+    api.post('/auth/google', { credential }),
   me: () => api.get('/auth/me'),
   updateProfile: (data: Record<string, unknown>) => api.put('/auth/profile', data),
   deleteAccount: () => api.delete('/auth/account'),
