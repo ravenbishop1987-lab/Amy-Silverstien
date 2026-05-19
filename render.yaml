@@ -1,0 +1,29 @@
+services:
+  # Backend API — https://amy-silverstien.onrender.com
+  - type: web
+    name: amy-silverstien
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: FRONTEND_URL
+        value: https://amy-silverstien-1.onrender.com
+      - key: WIDGET_URL
+        value: https://amy-silverstien-1.onrender.com
+      # Set these secrets in the Render dashboard → Environment:
+      # SUPABASE_URL, SUPABASE_SERVICE_KEY, SECRET_KEY,
+      # ANTHROPIC_API_KEY, ELEVENLABS_API_KEY,
+      # STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+
+  # Frontend static site — https://amy-silverstien-1.onrender.com
+  - type: web
+    name: amy-silverstien-1
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
