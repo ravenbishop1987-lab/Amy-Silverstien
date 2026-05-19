@@ -5,7 +5,8 @@
       "Bash(git commit -m ' *)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\redee\\\\Desktop\\\\AMY Chatbot\\\\backend\\\\app\\\\\" -Recurse -File | Select-Object FullName | Sort-Object FullName)",
       "Bash(.\\\\venv\\\\Scripts\\\\Activate.ps1)",
-      "Bash(pip install *)"
+      "Bash(pip install *)",
+      "Bash(git push *)"
     ]
   }
 }
