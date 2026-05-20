@@ -20,6 +20,14 @@ class GoogleLogin(BaseModel):
     credential: str
 
 
+class MagicLinkRequest(BaseModel):
+    email: EmailStr
+
+
+class MagicLinkVerify(BaseModel):
+    token: str
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"

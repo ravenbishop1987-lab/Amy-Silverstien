@@ -31,6 +31,19 @@ CREATE TABLE users (
 
 CREATE INDEX idx_users_email ON users(email);
 
+-- Passwordless magic-link login tokens
+CREATE TABLE IF NOT EXISTS magic_login_tokens (
+    token_id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email           VARCHAR(255) NOT NULL,
+    token_hash      VARCHAR(64) UNIQUE NOT NULL,
+    expires_at      TIMESTAMP NOT NULL,
+    used_at         TIMESTAMP,
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_magic_login_tokens_hash ON magic_login_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_magic_login_tokens_email ON magic_login_tokens(email);
+
 -- ── User Profiles ──────────────────────────────────────────
 
 CREATE TABLE user_profiles (

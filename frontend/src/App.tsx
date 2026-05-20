@@ -5,6 +5,7 @@ import { authApi } from '@/lib/api'
 import Home from '@/pages/Home'
 import Login from '@/pages/Login'
 import Signup from '@/pages/Signup'
+import MagicLogin from '@/pages/MagicLogin'
 import Chat from '@/pages/Chat'
 import Memory from '@/pages/Memory'
 import History from '@/pages/History'
@@ -48,6 +49,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/magic-login" element={<MagicLogin />} />
         <Route element={<Layout />}>
           <Route path="/chat" element={<Chat />} />
           <Route path="/chat/:conversationId" element={<Chat />} />

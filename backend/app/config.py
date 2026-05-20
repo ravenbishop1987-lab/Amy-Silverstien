@@ -10,6 +10,13 @@ class Settings(BaseSettings):
     WIDGET_URL: str = "http://localhost:5174"
     FANVUE_URL: str = "https://www.fanvue.com/amysilverstein87"
     GOOGLE_CLIENT_ID: str = ""
+    MAGIC_LINK_EXPIRE_MINUTES: int = 15
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_FROM_NAME: str = "Amy"
 
     # ── Supabase ───────────────────────────────────────────
     SUPABASE_URL: str = ""                 # https://your-ref.supabase.co

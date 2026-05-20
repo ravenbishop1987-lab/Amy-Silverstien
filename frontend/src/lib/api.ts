@@ -19,7 +19,7 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401) {
-      const onAuthPage = ['/login', '/signup'].includes(window.location.pathname)
+      const onAuthPage = ['/login', '/signup', '/magic-login'].includes(window.location.pathname)
       if (!onAuthPage) {
         localStorage.removeItem('token')
         localStorage.removeItem('amy_user')
@@ -38,6 +38,10 @@ export const authApi = {
     api.post('/auth/login', { email, password }),
   googleLogin: (credential: string) =>
     api.post('/auth/google', { credential }),
+  requestMagicLink: (email: string) =>
+    api.post('/auth/magic-link', { email }),
+  verifyMagicLink: (token: string) =>
+    api.post('/auth/magic-link/verify', { token }),
   me: () => api.get('/auth/me'),
   updateProfile: (data: Record<string, unknown>) => api.put('/auth/profile', data),
   deleteAccount: () => api.delete('/auth/account'),
