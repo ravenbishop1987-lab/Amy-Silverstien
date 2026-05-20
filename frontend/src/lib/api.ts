@@ -42,6 +42,8 @@ export const authApi = {
     api.post('/auth/magic-link', { email }),
   verifyMagicLink: (token: string) =>
     api.post('/auth/magic-link/verify', { token }),
+  loginWithSupabaseSession: (access_token: string) =>
+    api.post('/auth/supabase-session', { access_token }),
   me: () => api.get('/auth/me'),
   updateProfile: (data: Record<string, unknown>) => api.put('/auth/profile', data),
   deleteAccount: () => api.delete('/auth/account'),

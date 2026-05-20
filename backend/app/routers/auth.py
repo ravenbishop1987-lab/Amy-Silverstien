@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timedelta
 from email.message import EmailMessage
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
@@ -18,6 +19,7 @@ from app.schemas.user import (
     GoogleLogin,
     MagicLinkRequest,
     MagicLinkVerify,
+    SupabaseSessionLogin,
     Token,
     UserCreate,
     UserLogin,
@@ -72,6 +74,29 @@ def _send_magic_link_email(email: str, link: str) -> None:
         if settings.SMTP_USERNAME and settings.SMTP_PASSWORD:
             smtp.login(settings.SMTP_USERNAME, settings.SMTP_PASSWORD)
         smtp.send_message(message)
+
+
+async def _get_supabase_auth_user(access_token: str) -> dict:
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_KEY:
+        raise HTTPException(status_code=503, detail="Supabase Auth is not configured")
+
+    url = f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/user"
+    headers = {
+        "apikey": settings.SUPABASE_SERVICE_KEY,
+        "Authorization": f"Bearer {access_token}",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.get(url, headers=headers)
+    except Exception as exc:
+        logger.exception("[supabase-auth] user lookup request failed: %s", exc)
+        raise HTTPException(status_code=503, detail="Could not verify Supabase login")
+
+    if response.status_code != 200:
+        logger.warning("[supabase-auth] user lookup failed with status %s: %s", response.status_code, response.text[:300])
+        raise HTTPException(status_code=401, detail="Invalid or expired Supabase login")
+
+    return response.json()
 
 
 def _token_payload(user_id: str, email: str, tier: str | None = None) -> dict:
@@ -326,6 +351,33 @@ async def google_login(data: GoogleLogin, supa: AsyncClient = Depends(get_supaba
         await supa.table("users").update({"last_login": datetime.utcnow().isoformat()}).eq("user_id", user["user_id"]).execute()
     except Exception as exc:
         logger.warning(f"[google-login] last_login update skipped for {user['user_id']}: {type(exc).__name__}: {exc}")
+
+    return _token_payload(user["user_id"], user["email"], user.get("subscription_tier"))
+
+
+@router.post("/supabase-session", response_model=Token)
+async def supabase_session_login(data: SupabaseSessionLogin, supa: AsyncClient = Depends(get_supabase)):
+    auth_user = await _get_supabase_auth_user(data.access_token)
+    email = str(auth_user.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=401, detail="Supabase account has no email")
+
+    metadata = auth_user.get("user_metadata") or {}
+    preferred_name = str(metadata.get("name") or metadata.get("full_name") or "").strip() or None
+    user = await _get_or_create_user_for_email(supa, email, "supabase-auth")
+
+    if preferred_name:
+        try:
+            existing_profile = await supa.table("user_profiles").select("profile_id,preferred_name").eq("user_id", user["user_id"]).maybe_single().execute()
+            if existing_profile.data and not existing_profile.data.get("preferred_name"):
+                await supa.table("user_profiles").update({"preferred_name": preferred_name}).eq("user_id", user["user_id"]).execute()
+        except Exception as exc:
+            logger.warning("[supabase-auth] preferred_name update skipped for %s: %s: %s", user["user_id"], type(exc).__name__, exc)
+
+    try:
+        await supa.table("users").update({"last_login": datetime.utcnow().isoformat()}).eq("user_id", user["user_id"]).execute()
+    except Exception as exc:
+        logger.warning("[supabase-auth] last_login update skipped for %s: %s: %s", user["user_id"], type(exc).__name__, exc)
 
     return _token_payload(user["user_id"], user["email"], user.get("subscription_tier"))
 

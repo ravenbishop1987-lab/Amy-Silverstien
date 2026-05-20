@@ -11,6 +11,29 @@ export default function MagicLogin() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+    const supabaseAccessToken = hashParams.get('access_token')
+    if (supabaseAccessToken) {
+      authApi.loginWithSupabaseSession(supabaseAccessToken)
+        .then(({ data }) => {
+          setAuth(data.access_token, {
+            user_id: data.user_id,
+            email: data.email,
+            subscription_tier: data.subscription_tier,
+            created_at: new Date().toISOString(),
+            profile: null,
+          })
+          toast.success('Signed in')
+          navigate('/chat', { replace: true })
+        })
+        .catch((err: unknown) => {
+          const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+          toast.error(typeof msg === 'string' ? msg : 'That Supabase sign-in link did not work')
+          setStatus('failed')
+        })
+      return
+    }
+
     const token = searchParams.get('token')
     if (!token) {
       setStatus('failed')

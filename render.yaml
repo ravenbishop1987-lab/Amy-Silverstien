@@ -27,6 +27,10 @@ services:
     envVars:
       - key: VITE_GOOGLE_CLIENT_ID
         sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
     staticPublishPath: dist
     routes:
       - type: rewrite

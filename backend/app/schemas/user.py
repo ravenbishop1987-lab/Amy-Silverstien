@@ -28,6 +28,10 @@ class MagicLinkVerify(BaseModel):
     token: str
 
 
+class SupabaseSessionLogin(BaseModel):
+    access_token: str
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
