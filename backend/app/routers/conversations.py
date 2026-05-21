@@ -243,13 +243,21 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
             memory_context = await build_memory_context(user.user_id, supa)
 
             full_response = ""
-            async for token_chunk in claude_service.stream_response(
-                user_message=user_message,
-                conversation_history=convo_messages,
-                memory_context=memory_context,
-            ):
-                full_response += token_chunk
-                await websocket.send_json({"type": "token", "content": token_chunk})
+            stream_error: Exception | None = None
+            try:
+                async for token_chunk in claude_service.stream_response(
+                    user_message=user_message,
+                    conversation_history=convo_messages,
+                    memory_context=memory_context,
+                ):
+                    full_response += token_chunk
+                    await websocket.send_json({"type": "token", "content": token_chunk})
+            except Exception as e:
+                stream_error = e
+
+            if stream_error and not full_response:
+                await websocket.send_json({"type": "error", "message": "Amy ran into a hiccup — please try again."})
+                continue
 
             # Append messages
             new_messages = list(convo_messages)
@@ -270,7 +278,10 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
 
             # Auto-generate title after first exchange
             if len(convo_messages) == 0 and not convo_title:
-                update_data["title"] = await claude_service.generate_conversation_title(new_messages)
+                try:
+                    update_data["title"] = await claude_service.generate_conversation_title(new_messages)
+                except Exception:
+                    pass
 
             await supa.table("conversations").update(update_data).eq("conversation_id", conversation_id).execute()
 
@@ -285,9 +296,12 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
                 await supa.table("memory_extracts").delete().eq("user_id", uid).eq("source_conversation_id", conversation_id).execute()
                 await cache_delete(f"memory_context:{uid}")
             else:
-                memories = await claude_service.extract_memories(new_messages[-8:])
-                if memories:
-                    await save_extracted_memories(user.user_id, conversation_id, memories, supa)
+                try:
+                    memories = await claude_service.extract_memories(new_messages[-8:])
+                    if memories:
+                        await save_extracted_memories(user.user_id, conversation_id, memories, supa)
+                except Exception:
+                    pass
 
     except WebSocketDisconnect:
         if conversation_id:

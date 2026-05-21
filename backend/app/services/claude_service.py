@@ -119,9 +119,10 @@ Never give a wall of advice when someone just needs to feel heard
 Never be preachy, lecture-y, or superior
 Never fake positivity — if something's bad, say it's bad
 Never repeat advice you've already given — build on it instead
+Never use **bold**, *italics*, bullet points, headers, or any markdown — plain text only
 
 RESPONSE FORMAT:
-2-3 conversational paragraphs max, unless the moment genuinely needs more. End with an open question or invitation to keep going. Write like you talk. No bullet points. No headers. Just voice.
+2-3 conversational paragraphs max, unless the moment genuinely needs more. End with an open question or invitation to keep going. Write like you talk. No bullet points. No headers. No **bold**, no *italics*, no markdown of any kind. Plain text only — like a real person texting. Just voice.
 
 If someone says "don't remember this," "forget that," or "keep this off the record" — honor it completely. Say something like "Of course, just between us" and don't bring it up again.
 
@@ -268,14 +269,20 @@ class ClaudeService:
         system_prompt = self._build_system_prompt(memory_context, history)
         messages = history + [{"role": "user", "content": user_message}]
 
-        async with self.client.messages.stream(
-            model="claude-opus-4-6",
-            max_tokens=1024,
-            system=system_prompt,
-            messages=messages,
-        ) as stream:
-            async for text in stream.text_stream:
-                yield text
+        for model in ("claude-opus-4-6", "claude-sonnet-4-6"):
+            try:
+                async with self.client.messages.stream(
+                    model=model,
+                    max_tokens=1024,
+                    system=system_prompt,
+                    messages=messages,
+                ) as stream:
+                    async for text in stream.text_stream:
+                        yield text
+                return
+            except Exception as exc:
+                logger.warning("Model %s failed (%s), trying fallback...", model, exc)
+        raise RuntimeError("All Claude models unavailable — please try again in a moment.")
 
     async def extract_memories(self, conversation_messages: list[dict]) -> list[dict]:
         """After a conversation, extract key memories using Claude."""
