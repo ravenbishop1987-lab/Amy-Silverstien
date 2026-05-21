@@ -146,13 +146,14 @@ async def _create_default_profile_and_credits(
 
 async def _get_or_create_user_for_email(supa: AsyncClient, email: str, log_prefix: str) -> dict:
     try:
-        result = await supa.table("users").select("*").eq("email", email).maybe_single().execute()
+        result = await supa.table("users").select("*").eq("email", email).limit(1).execute()
     except Exception as exc:
         logger.exception("[%s] user lookup failed for %s: %s", log_prefix, email, exc)
         raise HTTPException(status_code=503, detail="Service temporarily unavailable")
 
-    if result.data:
-        return result.data
+    existing = result.data[0] if result and result.data else None
+    if existing:
+        return existing
 
     user_id = str(uuid.uuid4())
     logger.info("[%s] creating user %s for %s", log_prefix, user_id, email)
@@ -180,16 +181,14 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
         logger.info(f"[register] attempt: {data.email}")
 
         try:
-            existing = await supa.table("users").select("user_id").eq("email", data.email).maybe_single().execute()
-            if existing is None:
-                raise RuntimeError("No response from database — users table may not exist")
+            existing = await supa.table("users").select("user_id").eq("email", data.email).limit(1).execute()
         except HTTPException:
             raise
         except Exception as exc:
             logger.exception(f"[register] email-check DB error for {data.email}: {exc}")
             raise HTTPException(status_code=503, detail="Service temporarily unavailable")
 
-        if existing.data:
+        if existing and existing.data:
             logger.info(f"[register] duplicate email: {data.email}")
             raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -222,16 +221,14 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
 async def login(data: UserLogin, supa: AsyncClient = Depends(get_supabase)):
     try:
         try:
-            result = await supa.table("users").select("*").eq("email", data.email).maybe_single().execute()
-            if result is None:
-                raise RuntimeError("No response from database — users table may not exist")
+            result = await supa.table("users").select("*").eq("email", data.email).limit(1).execute()
         except HTTPException:
             raise
         except Exception as exc:
             logger.exception(f"[login] query failed for {data.email}: {exc}")
             raise HTTPException(status_code=503, detail="Service temporarily unavailable")
 
-        user = result.data
+        user = result.data[0] if result and result.data else None
         if not user or not verify_password(data.password, user.get("password_hash")):
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -292,12 +289,12 @@ async def verify_magic_link(data: MagicLinkVerify, supa: AsyncClient = Depends(g
 
     token_hash = _hash_magic_token(token)
     try:
-        result = await supa.table("magic_login_tokens").select("*").eq("token_hash", token_hash).maybe_single().execute()
+        result = await supa.table("magic_login_tokens").select("*").eq("token_hash", token_hash).limit(1).execute()
     except Exception as exc:
         logger.exception("[magic-link] token lookup failed: %s", exc)
         raise HTTPException(status_code=503, detail="Could not verify sign-in link")
 
-    row = result.data
+    row = result.data[0] if result and result.data else None
     if not row:
         raise HTTPException(status_code=401, detail="This sign-in link is invalid or has already been used")
 
@@ -349,8 +346,9 @@ async def google_login(data: GoogleLogin, supa: AsyncClient = Depends(get_supaba
     user = await _get_or_create_user_for_email(supa, email, "google-login")
     if preferred_name:
         try:
-            existing_profile = await supa.table("user_profiles").select("profile_id,preferred_name").eq("user_id", user["user_id"]).maybe_single().execute()
-            if existing_profile.data and not existing_profile.data.get("preferred_name"):
+            existing_profile = await supa.table("user_profiles").select("profile_id,preferred_name").eq("user_id", user["user_id"]).limit(1).execute()
+            ep = existing_profile.data[0] if existing_profile and existing_profile.data else None
+            if ep and not ep.get("preferred_name"):
                 await supa.table("user_profiles").update({"preferred_name": preferred_name}).eq("user_id", user["user_id"]).execute()
         except Exception as exc:
             logger.warning("[google-login] preferred_name update skipped for %s: %s: %s", user["user_id"], type(exc).__name__, exc)
@@ -376,8 +374,9 @@ async def supabase_session_login(data: SupabaseSessionLogin, supa: AsyncClient =
 
     if preferred_name:
         try:
-            existing_profile = await supa.table("user_profiles").select("profile_id,preferred_name").eq("user_id", user["user_id"]).maybe_single().execute()
-            if existing_profile.data and not existing_profile.data.get("preferred_name"):
+            existing_profile = await supa.table("user_profiles").select("profile_id,preferred_name").eq("user_id", user["user_id"]).limit(1).execute()
+            ep = existing_profile.data[0] if existing_profile and existing_profile.data else None
+            if ep and not ep.get("preferred_name"):
                 await supa.table("user_profiles").update({"preferred_name": preferred_name}).eq("user_id", user["user_id"]).execute()
         except Exception as exc:
             logger.warning("[supabase-auth] preferred_name update skipped for %s: %s: %s", user["user_id"], type(exc).__name__, exc)
@@ -395,13 +394,13 @@ async def get_me(
     current_user: UserRecord = Depends(get_current_user),
     supa: AsyncClient = Depends(get_supabase),
 ):
-    profile_r = await supa.table("user_profiles").select("*").eq("user_id", str(current_user.user_id)).maybe_single().execute()
+    profile_r = await supa.table("user_profiles").select("*").eq("user_id", str(current_user.user_id)).limit(1).execute()
     return {
         "user_id": current_user.user_id,
         "email": current_user.email,
         "subscription_tier": current_user.subscription_tier,
         "created_at": current_user.created_at,
-        "profile": profile_r.data,
+        "profile": profile_r.data[0] if profile_r and profile_r.data else None,
     }
 
 
@@ -417,8 +416,8 @@ async def update_profile(
         for k, v in data.model_dump(exclude_none=True).items()
     }
 
-    existing = await supa.table("user_profiles").select("profile_id").eq("user_id", uid).maybe_single().execute()
-    if existing.data:
+    existing = await supa.table("user_profiles").select("profile_id").eq("user_id", uid).limit(1).execute()
+    if existing and existing.data:
         result = await supa.table("user_profiles").update(update_data).eq("user_id", uid).execute()
         profile = result.data[0] if result.data else existing.data
     else:
