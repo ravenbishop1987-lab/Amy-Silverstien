@@ -181,6 +181,10 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
 
         try:
             existing = await supa.table("users").select("user_id").eq("email", data.email).maybe_single().execute()
+            if existing is None:
+                raise RuntimeError("No response from database — users table may not exist")
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.exception(f"[register] email-check DB error for {data.email}: {exc}")
             raise HTTPException(status_code=503, detail="Service temporarily unavailable")
@@ -219,6 +223,10 @@ async def login(data: UserLogin, supa: AsyncClient = Depends(get_supabase)):
     try:
         try:
             result = await supa.table("users").select("*").eq("email", data.email).maybe_single().execute()
+            if result is None:
+                raise RuntimeError("No response from database — users table may not exist")
+        except HTTPException:
+            raise
         except Exception as exc:
             logger.exception(f"[login] query failed for {data.email}: {exc}")
             raise HTTPException(status_code=503, detail="Service temporarily unavailable")
