@@ -18,8 +18,8 @@ async def build_memory_context(user_id: UUID, supa: AsyncClient) -> str:
     sections: list[str] = []
 
     # Tier 2: User profile
-    profile_r = await supa.table("user_profiles").select("*").eq("user_id", uid).maybe_single().execute()
-    profile = profile_r.data
+    profile_r = await supa.table("user_profiles").select("*").eq("user_id", uid).limit(1).execute()
+    profile = profile_r.data[0] if profile_r and profile_r.data else None
     if profile:
         facts = []
         if profile.get("preferred_name"):
@@ -128,8 +128,8 @@ async def save_extracted_memories(
         if not content or is_adult_language(content):
             continue
 
-        existing = await supa.table("memory_extracts").select("memory_id").eq("user_id", uid).eq("content", content).maybe_single().execute()
-        if existing.data:
+        existing = await supa.table("memory_extracts").select("memory_id").eq("user_id", uid).eq("content", content).limit(1).execute()
+        if existing and existing.data:
             continue
 
         memory_type_str = mem.get("type", "insight")

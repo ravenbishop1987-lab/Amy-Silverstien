@@ -97,7 +97,7 @@ async def subscription_status(
     current_user: UserRecord = Depends(get_current_user),
     supa: AsyncClient = Depends(get_supabase),
 ):
-    vc_r = await supa.table("voice_credits").select("*").eq("user_id", str(current_user.user_id)).maybe_single().execute()
+    vc_r = await supa.table("voice_credits").select("*").eq("user_id", str(current_user.user_id)).limit(1).execute()
     vc = vc_r.data
 
     return {

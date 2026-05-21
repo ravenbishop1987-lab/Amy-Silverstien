@@ -150,7 +150,7 @@ class StripeService:
         uid = str(user.user_id)
         convo = None
         if conversation_id:
-            conv_r = await supa.table("conversations").select("*").eq("conversation_id", conversation_id).eq("user_id", uid).maybe_single().execute()
+            conv_r = await supa.table("conversations").select("*").eq("conversation_id", conversation_id).eq("user_id", uid).limit(1).execute()
             convo = conv_r.data
 
         if not convo:
@@ -232,7 +232,7 @@ class StripeService:
         if not user_id:
             return
 
-        user_r = await supa.table("users").select("*").eq("user_id", user_id).maybe_single().execute()
+        user_r = await supa.table("users").select("*").eq("user_id", user_id).limit(1).execute()
         if not user_r.data:
             return
         user = user_r.data
@@ -262,7 +262,7 @@ class StripeService:
             }).execute()
 
         elif mode == "payment" and credit_type:
-            vc_r = await supa.table("voice_credits").select("*").eq("user_id", user_id).maybe_single().execute()
+            vc_r = await supa.table("voice_credits").select("*").eq("user_id", user_id).limit(1).execute()
             vc = vc_r.data
             add_convos = CREDITS_BULK_CONVERSATIONS if credit_type == "bulk" else CREDITS_SINGLE_CONVERSATIONS
 
@@ -283,7 +283,7 @@ class StripeService:
 
     async def _handle_subscription_updated(self, subscription: dict, supa: AsyncClient):
         customer_id = subscription.get("customer")
-        user_r = await supa.table("users").select("user_id").eq("stripe_customer_id", customer_id).maybe_single().execute()
+        user_r = await supa.table("users").select("user_id").eq("stripe_customer_id", customer_id).limit(1).execute()
         if not user_r.data:
             return
 
@@ -298,7 +298,7 @@ class StripeService:
 
     async def _handle_subscription_deleted(self, subscription: dict, supa: AsyncClient):
         customer_id = subscription.get("customer")
-        user_r = await supa.table("users").select("*").eq("stripe_customer_id", customer_id).maybe_single().execute()
+        user_r = await supa.table("users").select("*").eq("stripe_customer_id", customer_id).limit(1).execute()
         if not user_r.data:
             return
         user = user_r.data
@@ -321,7 +321,7 @@ class StripeService:
 
     async def _handle_payment_failed(self, invoice: dict, supa: AsyncClient):
         customer_id = invoice.get("customer")
-        user_r = await supa.table("users").select("*").eq("stripe_customer_id", customer_id).maybe_single().execute()
+        user_r = await supa.table("users").select("*").eq("stripe_customer_id", customer_id).limit(1).execute()
         if not user_r.data:
             return
         user = user_r.data

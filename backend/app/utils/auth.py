@@ -53,10 +53,10 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
 
-    result = await supa.table("users").select("*").eq("user_id", user_id).maybe_single().execute()
-    if not result.data:
+    result = await supa.table("users").select("*").eq("user_id", user_id).limit(1).execute()
+    if not (result and result.data):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    return UserRecord.from_row(result.data)
+    return UserRecord.from_row(result.data[0])
 
 
 async def get_current_user_ws(token: str, supa: AsyncClient) -> Optional[UserRecord]:
@@ -66,9 +66,9 @@ async def get_current_user_ws(token: str, supa: AsyncClient) -> Optional[UserRec
         user_id = payload.get("sub")
         if not user_id:
             return None
-        result = await supa.table("users").select("*").eq("user_id", user_id).maybe_single().execute()
-        if not result.data:
+        result = await supa.table("users").select("*").eq("user_id", user_id).limit(1).execute()
+        if not (result and result.data):
             return None
-        return UserRecord.from_row(result.data)
+        return UserRecord.from_row(result.data[0])
     except Exception:
         return None

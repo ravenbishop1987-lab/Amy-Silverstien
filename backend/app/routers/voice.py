@@ -87,8 +87,8 @@ async def enroll_voice(
     uid = str(current_user.user_id)
     enrolled_at = datetime.utcnow().isoformat()
 
-    existing = await supa.table("user_profiles").select("profile_id").eq("user_id", uid).maybe_single().execute()
-    if existing.data:
+    existing = await supa.table("user_profiles").select("profile_id").eq("user_id", uid).limit(1).execute()
+    if existing and existing.data:
         await supa.table("user_profiles").update({
             "voice_embedding": embedding,
             "voice_enrolled_at": enrolled_at,
@@ -116,8 +116,8 @@ async def verify_voice(
         raise HTTPException(status_code=503, detail="Voice recognition not available.")
 
     uid = str(current_user.user_id)
-    profile_r = await supa.table("user_profiles").select("voice_embedding,voice_enrolled_at").eq("user_id", uid).maybe_single().execute()
-    profile = profile_r.data
+    profile_r = await supa.table("user_profiles").select("voice_embedding,voice_enrolled_at").eq("user_id", uid).limit(1).execute()
+    profile = profile_r.data[0] if profile_r and profile_r.data else None
 
     if not profile or not profile.get("voice_embedding"):
         raise HTTPException(status_code=400, detail="No voice enrolled. Go to Settings → Voice Identity to enroll first.")
@@ -147,8 +147,8 @@ async def delete_voice_enrollment(
     supa: AsyncClient = Depends(get_supabase),
 ):
     uid = str(current_user.user_id)
-    existing = await supa.table("user_profiles").select("profile_id").eq("user_id", uid).maybe_single().execute()
-    if existing.data:
+    existing = await supa.table("user_profiles").select("profile_id").eq("user_id", uid).limit(1).execute()
+    if existing and existing.data:
         await supa.table("user_profiles").update({
             "voice_embedding": None,
             "voice_enrolled_at": None,

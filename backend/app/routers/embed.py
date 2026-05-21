@@ -90,8 +90,8 @@ async def list_embeds(
 @router.get("/config/{embed_code}")
 async def get_embed_config(embed_code: str, supa: AsyncClient = Depends(get_supabase)):
     """Called by the widget to fetch its configuration."""
-    result = await supa.table("website_embeds").select("*").eq("embed_code", embed_code).maybe_single().execute()
-    embed = result.data
+    result = await supa.table("website_embeds").select("*").eq("embed_code", embed_code).limit(1).execute()
+    embed = result.data[0] if result and result.data else None
     if not embed or not embed.get("active"):
         raise HTTPException(status_code=404, detail="Embed not found")
 

@@ -73,8 +73,8 @@ async def update_life_event(
     supa: AsyncClient = Depends(get_supabase),
 ):
     uid = str(current_user.user_id)
-    existing = await supa.table("life_events").select("event_id").eq("event_id", event_id).eq("user_id", uid).maybe_single().execute()
-    if not existing.data:
+    existing = await supa.table("life_events").select("event_id").eq("event_id", event_id).eq("user_id", uid).limit(1).execute()
+    if not (existing and existing.data):
         raise HTTPException(status_code=404, detail="Event not found")
 
     update = {
@@ -86,7 +86,7 @@ async def update_life_event(
     }
     result = await supa.table("life_events").update(update).eq("event_id", event_id).execute()
     await cache_delete(f"memory_context:{uid}")
-    return result.data[0] if result.data else existing.data
+    return result.data[0] if result and result.data else existing.data[0]
 
 
 @router.delete("/events/{event_id}", status_code=204)
@@ -96,8 +96,8 @@ async def delete_life_event(
     supa: AsyncClient = Depends(get_supabase),
 ):
     uid = str(current_user.user_id)
-    existing = await supa.table("life_events").select("event_id").eq("event_id", event_id).eq("user_id", uid).maybe_single().execute()
-    if not existing.data:
+    existing = await supa.table("life_events").select("event_id").eq("event_id", event_id).eq("user_id", uid).limit(1).execute()
+    if not (existing and existing.data):
         raise HTTPException(status_code=404, detail="Event not found")
     await supa.table("life_events").delete().eq("event_id", event_id).execute()
     await cache_delete(f"memory_context:{uid}")
@@ -135,8 +135,8 @@ async def delete_pattern(
     supa: AsyncClient = Depends(get_supabase),
 ):
     uid = str(current_user.user_id)
-    existing = await supa.table("behavioral_patterns").select("pattern_id").eq("pattern_id", pattern_id).eq("user_id", uid).maybe_single().execute()
-    if not existing.data:
+    existing = await supa.table("behavioral_patterns").select("pattern_id").eq("pattern_id", pattern_id).eq("user_id", uid).limit(1).execute()
+    if not (existing and existing.data):
         raise HTTPException(status_code=404, detail="Pattern not found")
     await supa.table("behavioral_patterns").delete().eq("pattern_id", pattern_id).execute()
     await cache_delete(f"memory_context:{uid}")
@@ -171,12 +171,12 @@ async def mark_goal_achieved(
     supa: AsyncClient = Depends(get_supabase),
 ):
     uid = str(current_user.user_id)
-    existing = await supa.table("goals").select("goal_id").eq("goal_id", goal_id).eq("user_id", uid).maybe_single().execute()
-    if not existing.data:
+    existing = await supa.table("goals").select("goal_id").eq("goal_id", goal_id).eq("user_id", uid).limit(1).execute()
+    if not (existing and existing.data):
         raise HTTPException(status_code=404, detail="Goal not found")
     result = await supa.table("goals").update({"achieved_date": datetime.utcnow().isoformat()}).eq("goal_id", goal_id).execute()
     await cache_delete(f"memory_context:{uid}")
-    return result.data[0] if result.data else existing.data
+    return result.data[0] if result and result.data else existing.data[0]
 
 
 @router.delete("/goals/{goal_id}", status_code=204)
@@ -186,8 +186,8 @@ async def delete_goal(
     supa: AsyncClient = Depends(get_supabase),
 ):
     uid = str(current_user.user_id)
-    existing = await supa.table("goals").select("goal_id").eq("goal_id", goal_id).eq("user_id", uid).maybe_single().execute()
-    if not existing.data:
+    existing = await supa.table("goals").select("goal_id").eq("goal_id", goal_id).eq("user_id", uid).limit(1).execute()
+    if not (existing and existing.data):
         raise HTTPException(status_code=404, detail="Goal not found")
     await supa.table("goals").delete().eq("goal_id", goal_id).execute()
     await cache_delete(f"memory_context:{uid}")
@@ -221,8 +221,8 @@ async def delete_sensitivity(
     supa: AsyncClient = Depends(get_supabase),
 ):
     uid = str(current_user.user_id)
-    existing = await supa.table("sensitivities").select("sensitivity_id").eq("sensitivity_id", sensitivity_id).eq("user_id", uid).maybe_single().execute()
-    if not existing.data:
+    existing = await supa.table("sensitivities").select("sensitivity_id").eq("sensitivity_id", sensitivity_id).eq("user_id", uid).limit(1).execute()
+    if not (existing and existing.data):
         raise HTTPException(status_code=404, detail="Sensitivity not found")
     await supa.table("sensitivities").delete().eq("sensitivity_id", sensitivity_id).execute()
     await cache_delete(f"memory_context:{uid}")
@@ -237,8 +237,8 @@ async def delete_memory_extract(
     supa: AsyncClient = Depends(get_supabase),
 ):
     uid = str(current_user.user_id)
-    existing = await supa.table("memory_extracts").select("memory_id").eq("memory_id", memory_id).eq("user_id", uid).maybe_single().execute()
-    if not existing.data:
+    existing = await supa.table("memory_extracts").select("memory_id").eq("memory_id", memory_id).eq("user_id", uid).limit(1).execute()
+    if not (existing and existing.data):
         raise HTTPException(status_code=404, detail="Memory extract not found")
     await supa.table("memory_extracts").delete().eq("memory_id", memory_id).execute()
     await cache_delete(f"memory_context:{uid}")

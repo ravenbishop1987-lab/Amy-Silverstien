@@ -49,8 +49,8 @@ async def _check_conversation_limit(user: UserRecord, supa: AsyncClient) -> bool
         return True
 
     uid = str(user.user_id)
-    vc_r = await supa.table("voice_credits").select("*").eq("user_id", uid).maybe_single().execute()
-    vc = vc_r.data
+    vc_r = await supa.table("voice_credits").select("*").eq("user_id", uid).limit(1).execute()
+    vc = vc_r.data[0] if vc_r and vc_r.data else None
     if not vc:
         return True
 
@@ -111,10 +111,10 @@ async def get_conversation(
     current_user: UserRecord = Depends(get_current_user),
     supa: AsyncClient = Depends(get_supabase),
 ):
-    result = await supa.table("conversations").select("*").eq("conversation_id", conversation_id).eq("user_id", str(current_user.user_id)).maybe_single().execute()
-    if not result.data:
+    result = await supa.table("conversations").select("*").eq("conversation_id", conversation_id).eq("user_id", str(current_user.user_id)).limit(1).execute()
+    if not (result and result.data):
         raise HTTPException(status_code=404, detail="Conversation not found")
-    return result.data
+    return result.data[0]
 
 
 @router.post("", response_model=ConversationResponse, status_code=status.HTTP_201_CREATED)
@@ -148,11 +148,11 @@ async def update_mood(
     current_user: UserRecord = Depends(get_current_user),
     supa: AsyncClient = Depends(get_supabase),
 ):
-    existing = await supa.table("conversations").select("conversation_id").eq("conversation_id", conversation_id).eq("user_id", str(current_user.user_id)).maybe_single().execute()
-    if not existing.data:
+    existing = await supa.table("conversations").select("conversation_id").eq("conversation_id", conversation_id).eq("user_id", str(current_user.user_id)).limit(1).execute()
+    if not (existing and existing.data):
         raise HTTPException(status_code=404, detail="Conversation not found")
     result = await supa.table("conversations").update({"user_mood_after": data.mood_after}).eq("conversation_id", conversation_id).execute()
-    return result.data[0] if result.data else existing.data
+    return result.data[0] if result and result.data else existing.data[0]
 
 
 @router.delete("/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -161,8 +161,8 @@ async def delete_conversation(
     current_user: UserRecord = Depends(get_current_user),
     supa: AsyncClient = Depends(get_supabase),
 ):
-    existing = await supa.table("conversations").select("conversation_id").eq("conversation_id", conversation_id).eq("user_id", str(current_user.user_id)).maybe_single().execute()
-    if not existing.data:
+    existing = await supa.table("conversations").select("conversation_id").eq("conversation_id", conversation_id).eq("user_id", str(current_user.user_id)).limit(1).execute()
+    if not (existing and existing.data):
         raise HTTPException(status_code=404, detail="Conversation not found")
     await supa.table("conversations").delete().eq("conversation_id", conversation_id).execute()
 
@@ -218,11 +218,12 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
             convo_title: str | None = None
 
             if conversation_id_str:
-                conv_r = await supa.table("conversations").select("*").eq("conversation_id", conversation_id_str).eq("user_id", uid).maybe_single().execute()
-                if conv_r.data:
+                conv_r = await supa.table("conversations").select("*").eq("conversation_id", conversation_id_str).eq("user_id", uid).limit(1).execute()
+                if conv_r and conv_r.data:
+                    conv_data = conv_r.data[0]
                     conversation_id = conversation_id_str
-                    convo_messages = conv_r.data.get("messages") or []
-                    convo_title = conv_r.data.get("title")
+                    convo_messages = conv_data.get("messages") or []
+                    convo_title = conv_data.get("title")
 
             if not conversation_id:
                 await _check_conversation_limit(user, supa)
