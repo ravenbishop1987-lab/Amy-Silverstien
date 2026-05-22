@@ -470,7 +470,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
   }
 
   return (
-    <div className="h-[100dvh] bg-white text-charcoal-900 flex flex-col overflow-hidden">
+    <div className="lg:h-[100dvh] bg-white text-charcoal-900 flex flex-col lg:overflow-hidden">
       <div className="h-16 border-b border-stone-200 px-5 lg:px-8 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           <button
@@ -512,8 +512,8 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
-        <section className="relative flex-none max-h-[42vh] lg:max-h-none lg:flex-1 overflow-y-auto overflow-x-hidden bg-[repeating-linear-gradient(135deg,#fbfbfb_0,#fbfbfb_12px,#f7f7f7_12px,#f7f7f7_24px)]">
+      <div className="flex flex-col lg:flex-row lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+        <section className="relative overflow-x-hidden lg:flex-1 lg:overflow-y-auto bg-[repeating-linear-gradient(135deg,#fbfbfb_0,#fbfbfb_12px,#f7f7f7_12px,#f7f7f7_24px)]">
           <div className="flex flex-col px-4 py-4 sm:px-6 sm:py-6">
             <div className="shrink-0 flex items-center justify-center pb-4">
               <div className="w-full max-w-5xl grid grid-cols-[minmax(104px,34vw)_minmax(140px,1fr)] xl:grid-cols-[minmax(200px,320px)_minmax(220px,1fr)] gap-4 sm:gap-8 items-center">
@@ -614,8 +614,8 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
           </div>
         </section>
 
-        <section className="flex-1 min-h-[58vh] lg:min-h-0 w-full lg:w-[40%] lg:min-w-[390px] border-t lg:border-t-0 lg:border-l border-stone-200 bg-white flex flex-col">
-          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5">
+        <section className="flex flex-col w-full lg:flex-1 lg:min-h-0 lg:w-[40%] lg:min-w-[390px] border-t lg:border-t-0 lg:border-l border-stone-200 bg-white">
+          <div className="px-5 py-5 space-y-5 lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
             {isEmpty && (
               <div className="h-full min-h-[360px] flex flex-col items-center justify-center text-center text-stone-400">
                 <div className="w-10 h-10 rounded-xl border border-stone-200 flex items-center justify-center mb-3">
@@ -655,7 +655,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
             <div ref={bottomRef} />
           </div>
 
-          <div className="px-5 py-5 shrink-0">
+          <div className="sticky bottom-0 z-10 bg-white border-t border-stone-100 px-5 py-5 lg:static lg:border-t-0 shrink-0">
             <div className="rounded-3xl border border-stone-200 bg-white shadow-soft p-3 flex items-end gap-3">
               {canUseVoice && (
                 <VoiceInput onTranscribed={(t) => sendMessage(t, true)} disabled={isStreaming || isWaiting || muted} />
