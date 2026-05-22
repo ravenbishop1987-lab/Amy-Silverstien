@@ -112,12 +112,13 @@
 
 @media (max-width: 640px) {
   .voice-orb {
-    width: clamp(112px, min(38vw, 24dvh), 170px);
-    height: clamp(112px, min(38vw, 24dvh), 170px);
+    width: clamp(80px, min(28vw, 18dvh), 140px);
+    height: clamp(80px, min(28vw, 18dvh), 140px);
   }
 
   .amy-picture-section {
-    width: clamp(96px, min(33vw, 26dvh), 150px);
+    width: clamp(72px, min(26vw, 20dvh), 120px);
+    aspect-ratio: 3 / 4;
   }
 }
 
