@@ -513,8 +513,8 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
-        <section className="relative flex-1 shrink-0 lg:shrink min-h-[560px] sm:min-h-[600px] lg:min-h-0 overflow-y-auto overflow-x-hidden bg-[repeating-linear-gradient(135deg,#fbfbfb_0,#fbfbfb_12px,#f7f7f7_12px,#f7f7f7_24px)]">
-          <div className="min-h-full flex flex-col px-4 py-4 sm:px-6 sm:py-6">
+        <section className="relative flex-none lg:flex-1 overflow-y-auto overflow-x-hidden bg-[repeating-linear-gradient(135deg,#fbfbfb_0,#fbfbfb_12px,#f7f7f7_12px,#f7f7f7_24px)]">
+          <div className="flex flex-col px-4 py-4 sm:px-6 sm:py-6">
             <div className="shrink-0 flex items-center justify-center pb-4">
               <div className="w-full max-w-5xl grid grid-cols-[minmax(104px,34vw)_minmax(140px,1fr)] xl:grid-cols-[minmax(200px,320px)_minmax(220px,1fr)] gap-4 sm:gap-8 items-center">
               <div className="amy-picture-section">
