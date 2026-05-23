@@ -227,13 +227,19 @@ class ClaudeService:
     def __init__(self):
         self.client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
-    def _build_system_prompt(self, memory_context: str, conversation_history: list[dict], client_time: str | None = None) -> str:
+    def _build_system_prompt(
+        self,
+        memory_context: str,
+        conversation_history: list[dict],
+        client_time: str | None = None,
+        conversation_intel_override: str | None = None,
+    ) -> str:
         if memory_context:
             context_section = f"\n\nWhat you know about this user (use naturally in conversation, don't dump all at once):\n{memory_context}"
         else:
             context_section = "\n\nThis is a new user — you're meeting them for the first time. Start warm, like you just pulled up a chair across the kitchen table from them. Ask what brought them here today, and make them feel safe before anything else."
 
-        conversation_intel = _build_conversation_intel(conversation_history)
+        conversation_intel = conversation_intel_override or _build_conversation_intel(conversation_history)
         intel_section = f"\n\n{conversation_intel}" if conversation_intel else ""
 
         time_section = f"\n\nUser's current local time: {client_time} — use this naturally when relevant (e.g. 'it's late,' 'good morning,' checking in on their evening). Don't mention it unless it adds something." if client_time else ""
@@ -267,12 +273,13 @@ class ClaudeService:
         conversation_history: list[dict],
         memory_context: str,
         client_time: str | None = None,
+        conversation_intel: str | None = None,
     ) -> AsyncGenerator[str, None]:
         if is_adult_language(user_message):
             return
 
         history = self._sanitize_history(conversation_history[-20:])
-        system_prompt = self._build_system_prompt(memory_context, history, client_time)
+        system_prompt = self._build_system_prompt(memory_context, history, client_time, conversation_intel)
         messages = history + [{"role": "user", "content": user_message}]
 
         for model in ("claude-opus-4-6", "claude-sonnet-4-6"):

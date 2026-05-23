@@ -105,12 +105,62 @@ export interface MemoryExtract {
   date_learned: string
 }
 
+export interface RelationshipEntity {
+  person_id: string
+  name_or_label: string
+  relationship_to_user: string
+  current_status: string
+  summary: string
+  positive_traits: string[]
+  red_flags: string[]
+  important_events: Array<Record<string, unknown>>
+  amy_assessment: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface EmotionalPattern {
+  pattern_id: string
+  pattern: string
+  seen_count: number
+  first_seen: string
+  last_seen: string
+  recommended_response: string | null
+  common_thought_loops: string[]
+  growth_tracking: Record<string, unknown>
+  amy_can_reference: string[]
+}
+
+export interface AdviceHistory {
+  advice_id: string
+  topic: string
+  advice_summary: string
+  exact_phrases_used: string[]
+  date_given: string
+  user_reaction: string
+  effectiveness: string
+}
+
+export interface MemoryUpdate {
+  update_id: string
+  should_save: boolean
+  memory_type: string
+  confidence: string
+  memory_text: string
+  expires: string
+  created_at: string
+}
+
 export interface MemoryBank {
   life_events: LifeEvent[]
   behavioral_patterns: BehavioralPattern[]
   goals: Goal[]
   sensitivities: Sensitivity[]
   memory_extracts: MemoryExtract[]
+  relationship_entities: RelationshipEntity[]
+  emotional_patterns: EmotionalPattern[]
+  advice_history: AdviceHistory[]
+  memory_updates: MemoryUpdate[]
 }
 
 export interface WSMessage {

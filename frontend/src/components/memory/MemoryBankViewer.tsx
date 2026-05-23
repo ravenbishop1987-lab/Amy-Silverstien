@@ -1,17 +1,8 @@
-import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Trash2, CheckCircle, Plus, Heart, Target, AlertCircle, Zap, Trophy } from 'lucide-react'
+import { Trash2, CheckCircle, Heart, Target, AlertCircle, Zap, Trophy, UserRound, Repeat2, MessageSquare } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { memoryApi } from '@/lib/api'
-import type { MemoryBank, LifeEvent, Goal, BehavioralPattern, Sensitivity, MemoryExtract } from '@/types'
-
-const SECTION_CONFIG = {
-  life_events: { label: 'Life Events', icon: Heart, color: 'text-blush-400', bg: 'bg-blush-100' },
-  behavioral_patterns: { label: 'Your Patterns', icon: Zap, color: 'text-sage-600', bg: 'bg-sage-100' },
-  goals: { label: 'Your Goals', icon: Target, color: 'text-sage-600', bg: 'bg-sage-100' },
-  sensitivities: { label: 'Handle with Care', icon: AlertCircle, color: 'text-blush-400', bg: 'bg-blush-100' },
-  memory_extracts: { label: 'What Amy Remembers', icon: Trophy, color: 'text-sage-600', bg: 'bg-sage-100' },
-}
+import type { MemoryBank, LifeEvent, Goal, BehavioralPattern, Sensitivity, MemoryExtract, RelationshipEntity, EmotionalPattern, AdviceHistory } from '@/types'
 
 export default function MemoryBankViewer() {
   const qc = useQueryClient()
@@ -55,7 +46,15 @@ export default function MemoryBankViewer() {
 
   if (!data) return null
 
-  const hasAnyMemory = data.life_events.length + data.behavioral_patterns.length + data.goals.length + data.sensitivities.length + data.memory_extracts.length > 0
+  const hasAnyMemory =
+    data.life_events.length +
+    data.behavioral_patterns.length +
+    data.goals.length +
+    data.sensitivities.length +
+    data.memory_extracts.length +
+    (data.relationship_entities?.length || 0) +
+    (data.emotional_patterns?.length || 0) +
+    (data.advice_history?.length || 0) > 0
 
   return (
     <div className="space-y-6">
@@ -150,6 +149,51 @@ export default function MemoryBankViewer() {
           ))}
         </MemorySection>
       )}
+
+      {(data.relationship_entities?.length || 0) > 0 && (
+        <MemorySection title="People Amy Remembers" icon={UserRound} iconColor="text-blush-400" bg="bg-blush-100">
+          {data.relationship_entities.slice(0, 20).map((p: RelationshipEntity) => (
+            <MemoryCard
+              key={p.person_id}
+              title={`${p.name_or_label} · ${p.relationship_to_user}`}
+              body={p.summary}
+              badge={p.current_status}
+              badgeColor="bg-blush-100 text-blush-400"
+              note={typeof p.amy_assessment?.recommended_guidance === 'string' ? p.amy_assessment.recommended_guidance : undefined}
+            />
+          ))}
+        </MemorySection>
+      )}
+
+      {(data.emotional_patterns?.length || 0) > 0 && (
+        <MemorySection title="Emotional Patterns" icon={Repeat2} iconColor="text-sage-600" bg="bg-sage-100">
+          {data.emotional_patterns.slice(0, 20).map((p: EmotionalPattern) => (
+            <MemoryCard
+              key={p.pattern_id}
+              title="pattern"
+              body={p.pattern}
+              badge={`Seen ${p.seen_count}x`}
+              badgeColor="bg-sage-100 text-sage-700"
+              note={p.recommended_response || undefined}
+            />
+          ))}
+        </MemorySection>
+      )}
+
+      {(data.advice_history?.length || 0) > 0 && (
+        <MemorySection title="Advice History" icon={MessageSquare} iconColor="text-sage-600" bg="bg-sage-100">
+          {data.advice_history.slice(0, 20).map((a: AdviceHistory) => (
+            <MemoryCard
+              key={a.advice_id}
+              title={a.topic}
+              body={a.advice_summary}
+              badge={a.effectiveness}
+              badgeColor="bg-cream-200 text-stone-500"
+              note={`Reaction: ${a.user_reaction}`}
+            />
+          ))}
+        </MemorySection>
+      )}
     </div>
   )
 }
@@ -172,7 +216,7 @@ function MemorySection({ title, icon: Icon, iconColor, bg, children }: {
 
 function MemoryCard({ title, body, badge, badgeColor, tag, note, onDelete, extraAction }: {
   title: string; body: string; badge?: string; badgeColor?: string; tag?: string;
-  note?: string; onDelete: () => void;
+  note?: string; onDelete?: () => void;
   extraAction?: { label: string; icon: React.ElementType; onClick: () => void }
 }) {
   return (
@@ -202,13 +246,15 @@ function MemoryCard({ title, body, badge, badgeColor, tag, note, onDelete, extra
             <extraAction.icon size={14} />
           </button>
         )}
-        <button
-          onClick={onDelete}
-          className="p-1 text-stone-300 hover:text-blush-400 transition-colors"
-          title="Remove"
-        >
-          <Trash2 size={14} />
-        </button>
+        {onDelete && (
+          <button
+            onClick={onDelete}
+            className="p-1 text-stone-300 hover:text-blush-400 transition-colors"
+            title="Remove"
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
       </div>
     </div>
   )

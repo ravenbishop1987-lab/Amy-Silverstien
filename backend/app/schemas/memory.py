@@ -87,9 +87,67 @@ class MemoryExtractResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class RelationshipEntityResponse(BaseModel):
+    person_id: UUID
+    name_or_label: str
+    relationship_to_user: str
+    current_status: str
+    summary: str
+    positive_traits: list = []
+    red_flags: list = []
+    important_events: list = []
+    amy_assessment: dict = {}
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class EmotionalPatternResponse(BaseModel):
+    pattern_id: UUID
+    pattern: str
+    seen_count: int
+    first_seen: datetime
+    last_seen: datetime
+    recommended_response: Optional[str]
+    common_thought_loops: list = []
+    growth_tracking: dict = {}
+    amy_can_reference: list = []
+
+    model_config = {"from_attributes": True}
+
+
+class AdviceHistoryResponse(BaseModel):
+    advice_id: UUID
+    topic: str
+    advice_summary: str
+    exact_phrases_used: list = []
+    date_given: datetime
+    user_reaction: str
+    effectiveness: str
+
+    model_config = {"from_attributes": True}
+
+
+class MemoryUpdateResponse(BaseModel):
+    update_id: UUID
+    should_save: bool
+    memory_type: str
+    confidence: str
+    memory_text: str
+    expires: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class MemoryBankResponse(BaseModel):
     life_events: list[LifeEventResponse]
     behavioral_patterns: list[BehavioralPatternResponse]
     goals: list[GoalResponse]
     sensitivities: list[SensitivityResponse]
     memory_extracts: list[MemoryExtractResponse]
+    relationship_entities: list[RelationshipEntityResponse] = []
+    emotional_patterns: list[EmotionalPatternResponse] = []
+    advice_history: list[AdviceHistoryResponse] = []
+    memory_updates: list[MemoryUpdateResponse] = []

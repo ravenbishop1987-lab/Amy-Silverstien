@@ -81,6 +81,66 @@ async def build_memory_context(user_id: UUID, supa: AsyncClient) -> str:
     if extract_lines:
         sections.append("IMPORTANT CONTEXT FROM PAST CONVERSATIONS:\n" + "\n".join(extract_lines))
 
+    # Advanced emotional pattern memory
+    try:
+        emotional_r = await supa.table("emotional_patterns").select("*").eq("user_id", uid).order("seen_count", desc=True).order("last_seen", desc=True).limit(8).execute()
+        emotional_patterns = emotional_r.data or []
+    except Exception:
+        emotional_patterns = []
+    if emotional_patterns:
+        lines = []
+        for pattern in emotional_patterns:
+            response = pattern.get("recommended_response") or "validate first, then reality-check gently"
+            lines.append(f"- {pattern.get('pattern')} (seen {pattern.get('seen_count', 1)}x): {response}")
+        sections.append("LONG-TERM EMOTIONAL PATTERNS:\n" + "\n".join(lines))
+
+    # Advice history so Amy can go deeper instead of restarting
+    try:
+        advice_r = await supa.table("advice_history").select("*").eq("user_id", uid).order("date_given", desc=True).limit(12).execute()
+        advice_history = advice_r.data or []
+    except Exception:
+        advice_history = []
+    if advice_history:
+        lines = []
+        for advice in advice_history:
+            lines.append(
+                f"- {advice.get('topic')}: {advice.get('advice_summary')} "
+                f"(reaction: {advice.get('user_reaction') or 'unknown'}, effectiveness: {advice.get('effectiveness') or 'unknown'})"
+            )
+        sections.append("ADVICE ALREADY GIVEN (avoid repeating wording; build on it):\n" + "\n".join(lines))
+
+    # Relationship entity memory
+    try:
+        people_r = await supa.table("relationship_entities").select("*").eq("user_id", uid).order("updated_at", desc=True).limit(10).execute()
+        people = people_r.data or []
+    except Exception:
+        people = []
+    if people:
+        lines = []
+        for person in people:
+            assessment = person.get("amy_assessment") or {}
+            guidance = assessment.get("recommended_guidance") or "watch consistency and protect the user's self-worth"
+            lines.append(
+                f"- {person.get('name_or_label')} ({person.get('relationship_to_user')}, {person.get('current_status')}): "
+                f"{person.get('summary')} Guidance: {guidance}"
+            )
+        sections.append("PEOPLE THEY TALK ABOUT:\n" + "\n".join(lines))
+
+    # Communication preferences and sensitivities that do not fit older profile columns
+    try:
+        prefs_r = await supa.table("user_preferences").select("*").eq("user_id", uid).limit(1).execute()
+        prefs = prefs_r.data[0] if prefs_r and prefs_r.data else None
+    except Exception:
+        prefs = None
+    if prefs:
+        sections.append(
+            "HOW TO TALK TO THEM:\n"
+            f"- Responds to: {', '.join(prefs.get('responds_to') or [])}\n"
+            f"- Avoids: {', '.join(prefs.get('avoids') or [])}\n"
+            f"- Preferred length: {prefs.get('preferred_length') or 'medium'}\n"
+            f"- Preferred tone: {prefs.get('preferred_tone') or 'girl-next-door'}"
+        )
+
     # Recent conversation continuity
     convos_r = await supa.table("conversations").select("title,messages").eq("user_id", uid).order("date_started", desc=True).limit(5).execute()
     recent_convos = convos_r.data or []

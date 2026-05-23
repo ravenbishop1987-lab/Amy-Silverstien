@@ -30,6 +30,10 @@ async def get_memory_bank(
     goals = (await supa.table("goals").select("*").eq("user_id", uid).order("created_at", desc=True).execute()).data or []
     sensitivities = (await supa.table("sensitivities").select("*").eq("user_id", uid).execute()).data or []
     extracts = (await supa.table("memory_extracts").select("*").eq("user_id", uid).order("importance_score", desc=True).order("date_learned", desc=True).limit(50).execute()).data or []
+    relationship_entities = await _optional_select(supa.table("relationship_entities").select("*").eq("user_id", uid).order("updated_at", desc=True).limit(50))
+    emotional_patterns = await _optional_select(supa.table("emotional_patterns").select("*").eq("user_id", uid).order("seen_count", desc=True).limit(50))
+    advice_history = await _optional_select(supa.table("advice_history").select("*").eq("user_id", uid).order("date_given", desc=True).limit(50))
+    memory_updates = await _optional_select(supa.table("memory_updates").select("*").eq("user_id", uid).eq("should_save", True).order("created_at", desc=True).limit(50))
 
     return MemoryBankResponse(
         life_events=events,
@@ -37,7 +41,19 @@ async def get_memory_bank(
         goals=goals,
         sensitivities=sensitivities,
         memory_extracts=extracts,
+        relationship_entities=relationship_entities,
+        emotional_patterns=emotional_patterns,
+        advice_history=advice_history,
+        memory_updates=memory_updates,
     )
+
+
+async def _optional_select(query):
+    try:
+        result = await query.execute()
+        return result.data or []
+    except Exception:
+        return []
 
 
 # ── Life Events ────────────────────────────────────────────────────────────────
@@ -265,4 +281,17 @@ async def clear_all_memory(
     await supa.table("behavioral_patterns").delete().eq("user_id", uid).execute()
     await supa.table("goals").delete().eq("user_id", uid).execute()
     await supa.table("sensitivities").delete().eq("user_id", uid).execute()
+    for table in (
+        "relationship_entities",
+        "emotional_patterns",
+        "advice_history",
+        "conversation_summaries",
+        "memory_updates",
+        "safety_flags",
+        "user_preferences",
+    ):
+        try:
+            await supa.table(table).delete().eq("user_id", uid).execute()
+        except Exception:
+            pass
     await cache_delete(f"memory_context:{uid}")

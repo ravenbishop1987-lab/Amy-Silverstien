@@ -8,6 +8,7 @@ from app.models.user import UserRecord, SubscriptionTier
 from app.schemas.conversation import ConversationCreate, ConversationResponse, ConversationSummary, MoodUpdate
 from app.config import settings
 from app.services.claude_service import claude_service
+from app.services.conversation_logic_service import build_conversation_intelligence, save_turn_intelligence
 from app.services.memory_service import build_memory_context, save_extracted_memories
 from app.utils.adult_filter import is_adult_language
 from app.utils.auth import get_current_user, get_current_user_ws
@@ -217,6 +218,7 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
             # Load existing conversation or create a new one
             convo_messages: list = []
             convo_title: str | None = None
+            convo_started_at: str | None = None
 
             if conversation_id_str:
                 conv_r = await supa.table("conversations").select("*").eq("conversation_id", conversation_id_str).eq("user_id", uid).limit(1).execute()
@@ -225,6 +227,7 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
                     conversation_id = conversation_id_str
                     convo_messages = conv_data.get("messages") or []
                     convo_title = conv_data.get("title")
+                    convo_started_at = conv_data.get("date_started")
 
             if not conversation_id:
                 await _check_conversation_limit(user, supa)
@@ -239,9 +242,18 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
                     "date_started": now,
                     "created_at": now,
                 }).execute()
+                convo_started_at = now
 
-            # Build memory context and stream response
+            # Build memory context, conversation intelligence, and stream response
             memory_context = await build_memory_context(user.user_id, supa)
+            conversation_intel = await build_conversation_intelligence(
+                user_id=user.user_id,
+                conversation_id=conversation_id,
+                user_message=user_message,
+                conversation_messages=convo_messages,
+                supa=supa,
+                started_at=convo_started_at,
+            )
 
             full_response = ""
             stream_error: Exception | None = None
@@ -251,6 +263,7 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
                     conversation_history=convo_messages,
                     memory_context=memory_context,
                     client_time=client_time,
+                    conversation_intel=conversation_intel.get("prompt_context"),
                 ):
                     full_response += token_chunk
                     await websocket.send_json({"type": "token", "content": token_chunk})
@@ -263,17 +276,28 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
 
             # Append messages
             new_messages = list(convo_messages)
+            user_analysis = conversation_intel.get("analysis") or {}
             new_messages.append({
+                "message_id": str(uuid.uuid4()),
                 "role": "user",
                 "content": user_message,
                 "timestamp": datetime.utcnow().isoformat(),
                 "voice_used": msg.get("voice_used", False),
+                "summary": user_message[:180],
+                "sentiment": user_analysis.get("sentiment"),
+                "emotional_state": user_analysis.get("emotional_state"),
+                "topics_mentioned": user_analysis.get("topics_mentioned") or [],
+                "relationship_context": user_analysis.get("relationship_context"),
+                "urgency_level": user_analysis.get("urgency_level"),
+                "user_intent": user_analysis.get("user_intent"),
             })
             new_messages.append({
+                "message_id": str(uuid.uuid4()),
                 "role": "assistant",
                 "content": full_response,
                 "timestamp": datetime.utcnow().isoformat(),
                 "voice_used": False,
+                "summary": full_response[:180],
             })
 
             update_data: dict = {"messages": new_messages}
@@ -299,6 +323,14 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
                 await cache_delete(f"memory_context:{uid}")
             else:
                 try:
+                    await save_turn_intelligence(
+                        user_id=user.user_id,
+                        conversation_id=conversation_id,
+                        user_message=user_message,
+                        amy_response=full_response,
+                        intelligence=conversation_intel,
+                        supa=supa,
+                    )
                     memories = await claude_service.extract_memories(new_messages[-8:])
                     if memories:
                         await save_extracted_memories(user.user_id, conversation_id, memories, supa)
