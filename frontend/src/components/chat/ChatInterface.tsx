@@ -517,12 +517,13 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
           <div className="flex flex-col px-3 py-2 sm:px-6 sm:py-6">
             <div className="shrink-0 flex items-center justify-center pb-2 sm:pb-4">
               <div className="w-full max-w-5xl grid grid-cols-[minmax(104px,34vw)_minmax(140px,1fr)] xl:grid-cols-[minmax(200px,320px)_minmax(220px,1fr)] gap-4 sm:gap-8 items-center">
-              <div className="amy-picture-section">
+              <div className={`amy-picture-section ${isSpeaking ? 'amy-picture-speaking' : ''}`}>
                 <img
                   src="/amy-portrait.png"
                   alt="Amy Silverstein"
                   className="w-full h-full object-cover"
                 />
+                <div className="amy-mouth" aria-hidden="true" />
                 <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/65 via-black/18 to-transparent">
                   <p className="text-white font-semibold leading-tight">Amy Silverstein</p>
                   <p className="text-white/75 text-xs mt-0.5">Age 39 · Voice companion</p>
