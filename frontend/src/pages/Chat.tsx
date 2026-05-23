@@ -35,7 +35,7 @@ function ChatAuthGate() {
                 <img src="/amy-portrait.png" alt="Amy Silverstein" className="w-full h-full object-cover" />
                 <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/65 via-black/18 to-transparent">
                   <p className="text-white font-semibold leading-tight">Amy Silverstein</p>
-                  <p className="text-white/75 text-xs mt-0.5">Age 39 · Voice companion</p>
+                  <p className="text-white/75 text-xs mt-0.5">Age 39 · AI girlfriend</p>
                 </div>
               </div>
               <div className="flex flex-col items-center justify-center">

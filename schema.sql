@@ -290,13 +290,15 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     responds_to          JSONB NOT NULL DEFAULT '["validation first","direct honesty","gentle encouragement","step-by-step advice","warm reassurance"]',
     avoids               JSONB NOT NULL DEFAULT '["clinical language","generic advice","too many questions","cold logic","judgmental tone"]',
     preferred_length     VARCHAR(20) NOT NULL DEFAULT 'medium',
-    preferred_tone       VARCHAR(80) NOT NULL DEFAULT 'girl-next-door',
+    preferred_tone       VARCHAR(80) NOT NULL DEFAULT 'ai-girlfriend',
     humor_preference     VARCHAR(40) NOT NULL DEFAULT 'playful',
-    romantic_dynamic     JSONB NOT NULL DEFAULT '{"user_enjoys_teasing": false, "likes_pet_names": false, "comfortable_with_flirting": false, "preferred_style": "sweet", "avoid_styles": ["too aggressive", "too explicit", "graphic sexual detail"]}',
+    romantic_dynamic     JSONB NOT NULL DEFAULT '{"user_enjoys_teasing": true, "likes_pet_names": true, "comfortable_with_flirting": true, "preferred_style": "girlfriend", "avoid_styles": ["too aggressive", "too explicit", "graphic sexual detail"]}',
     updated_at           TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS romantic_dynamic JSONB NOT NULL DEFAULT '{"user_enjoys_teasing": false, "likes_pet_names": false, "comfortable_with_flirting": false, "preferred_style": "sweet", "avoid_styles": ["too aggressive", "too explicit", "graphic sexual detail"]}';
+ALTER TABLE user_preferences ALTER COLUMN preferred_tone SET DEFAULT 'ai-girlfriend';
+ALTER TABLE user_preferences ALTER COLUMN romantic_dynamic SET DEFAULT '{"user_enjoys_teasing": true, "likes_pet_names": true, "comfortable_with_flirting": true, "preferred_style": "girlfriend", "avoid_styles": ["too aggressive", "too explicit", "graphic sexual detail"]}';
 
 CREATE INDEX IF NOT EXISTS idx_user_preferences_user_id ON user_preferences(user_id);
 

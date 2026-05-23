@@ -70,7 +70,8 @@ FLIRT_POSITIVE_SIGNALS = (
     "flirt", "tease me", "be playful", "call me", "cute", "you like me",
     "i like when you", "keep talking like that", "pet name", "sweetheart",
     "babe", "baby", "romantic", "make me blush", "suggestive", "naughty",
-    "spicy", "coy", "tension", "chemistry",
+    "spicy", "coy", "tension", "chemistry", "girlfriend", "ai girlfriend",
+    "be my girlfriend", "act like my girlfriend", "miss me",
 )
 
 FLIRT_NEGATIVE_SIGNALS = (
@@ -116,7 +117,7 @@ def analyze_current_message(user_message: str) -> dict[str, Any]:
     intent = "venting"
     if crisis:
         intent = "crisis"
-    elif _contains_any(lower, ("flirt", "cute", "hot", "do you like me", "naughty", "suggestive", "spicy", "tease me")):
+    elif _contains_any(lower, ("flirt", "cute", "hot", "do you like me", "naughty", "suggestive", "spicy", "tease me", "girlfriend", "miss me")):
         intent = "flirting"
     elif asks_advice:
         intent = "advice"
@@ -157,11 +158,16 @@ def analyze_current_message(user_message: str) -> dict[str, Any]:
 
 
 def _flirt_mode_for(text: str, intent: str, mood: str, intensity: str, crisis: bool) -> dict[str, Any]:
+    bad_headspace = _contains_any(text, (
+        "cry", "crying", "panic", "spiral", "trauma", "hurt myself", "abuse",
+        "not safe", "danger", "overwhelmed", "can't do this", "cant do this",
+        "i'm scared", "im scared", "i feel broken",
+    ))
     comfort_only = (
         crisis
         or intensity == "high"
-        or mood in ("sad", "angry", "anxious", "lonely")
-        or _contains_any(text, ("cry", "panic", "spiral", "trauma", "hurt myself", "abuse"))
+        or bad_headspace
+        or (mood in ("sad", "anxious", "lonely") and intent != "flirting")
     )
     if comfort_only:
         level = 0
@@ -174,14 +180,15 @@ def _flirt_mode_for(text: str, intent: str, mood: str, intensity: str, crisis: b
     elif mood in ("happy", "hopeful", "excited") or _contains_any(text, ("lol", "haha", "funny")):
         level = 1
     else:
-        level = 1
+        level = 2
 
     return {
         "level": level,
         "mode": FLIRT_MODE_LABELS[level],
         "safe_to_flirt": level > 0,
         "comfort_only": level == 0,
-        "reason": "lowered for vulnerable or serious emotional context" if level == 0 else "stable enough for warm companion energy",
+        "girlfriend_mode": level > 0,
+        "reason": "lowered for bad-headspace support" if level == 0 else "stable enough for AI girlfriend companion energy",
     }
 
 
@@ -423,6 +430,8 @@ def _format_prompt_context(
         f"- Flirty companion layer: level {flirt['level']} ({flirt['mode']}); "
         f"safe_to_flirt={flirt['safe_to_flirt']}; reason: {flirt['reason']}."
     )
+    if flirt.get("girlfriend_mode"):
+        lines.append("- AI girlfriend mode: lead with affectionate presence, emotional closeness, playful callbacks, and romantic companion energy when the user is stable. Do not force advice unless they ask for it.")
     if flirt["level"] == 0:
         lines.append("- Flirt behavior: comfort only. No teasing, suggestive language, jealousy jokes, or pet-name-heavy replies.")
     elif flirt["level"] == 1:
@@ -495,7 +504,7 @@ def _should_save_memory(user_message: str, analysis: dict[str, Any]) -> bool:
         or _contains_any(lower, (
             "my name is", "call me", "i have adhd", "i have anxiety", "my ex",
             "my boyfriend", "my girlfriend", "my partner", "i always", "i keep",
-            "i want to", "my goal", "remember", "flirt", "tease me", "pet name", "naughty", "suggestive", "spicy",
+            "i want to", "my goal", "remember", "flirt", "tease me", "pet name", "naughty", "suggestive", "spicy", "girlfriend",
         ))
     )
 
@@ -645,7 +654,7 @@ async def _maybe_update_romantic_dynamic(
         "responds_to": current.get("responds_to") or ["validation first", "direct honesty", "gentle encouragement", "step-by-step advice", "warm reassurance"],
         "avoids": current.get("avoids") or ["clinical language", "generic advice", "too many questions", "cold logic", "judgmental tone"],
         "preferred_length": current.get("preferred_length") or "medium",
-        "preferred_tone": current.get("preferred_tone") or "girl-next-door",
+        "preferred_tone": current.get("preferred_tone") or "ai-girlfriend",
         "humor_preference": current.get("humor_preference") or "playful",
         "romantic_dynamic": dynamic,
         "updated_at": now,

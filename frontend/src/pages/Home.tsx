@@ -68,7 +68,7 @@ export default function Home() {
               The advice you wish<br />your best friend had
             </h2>
             <p className="text-stone-500 text-lg leading-relaxed max-w-xl mb-10">
-              Amy is your AI companion for dating and relationships. She remembers your story,
+              Amy is your AI girlfriend companion for dating and relationships. She remembers your story,
               recognizes your patterns, celebrates your wins — and gives you real advice, not platitudes.
             </p>
             <div className="flex items-center gap-4 flex-wrap">
@@ -123,7 +123,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="text-center py-8 text-xs text-stone-400">
-        Amy · Your AI dating companion · Powered by Claude
+        Amy · Your AI girlfriend companion · Powered by Claude
       </footer>
     </div>
   )

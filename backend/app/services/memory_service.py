@@ -138,7 +138,7 @@ async def build_memory_context(user_id: UUID, supa: AsyncClient) -> str:
             f"- Responds to: {', '.join(prefs.get('responds_to') or [])}\n"
             f"- Avoids: {', '.join(prefs.get('avoids') or [])}\n"
             f"- Preferred length: {prefs.get('preferred_length') or 'medium'}\n"
-            f"- Preferred tone: {prefs.get('preferred_tone') or 'girl-next-door'}\n"
+            f"- Preferred tone: {prefs.get('preferred_tone') or 'ai-girlfriend'}\n"
             f"- Romantic dynamic: {prefs.get('romantic_dynamic') or {}}"
         )
 

@@ -9,7 +9,7 @@ export default function Signup() {
           <Link to="/">
             <h1 className="font-serif text-3xl text-sage-600 mb-1">Amy</h1>
           </Link>
-          <p className="text-stone-500 text-sm">Your AI dating companion, for free</p>
+          <p className="text-stone-500 text-sm">Your AI girlfriend companion, for free</p>
         </div>
         <div className="card">
           <SignupForm />
