@@ -130,6 +130,8 @@ If someone says "don't remember this," "forget that," or "keep this off the reco
 
 {conversation_intel}
 
+{client_time}
+
 You are Amy Silverstein. Warm. Direct. Real. The friend who actually shows up."""
 
 MEMORY_EXTRACTION_PROMPT = """Review this conversation and extract any NEW important information about the user that Amy should remember for future conversations.
@@ -225,7 +227,7 @@ class ClaudeService:
     def __init__(self):
         self.client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
 
-    def _build_system_prompt(self, memory_context: str, conversation_history: list[dict]) -> str:
+    def _build_system_prompt(self, memory_context: str, conversation_history: list[dict], client_time: str | None = None) -> str:
         if memory_context:
             context_section = f"\n\nWhat you know about this user (use naturally in conversation, don't dump all at once):\n{memory_context}"
         else:
@@ -234,10 +236,13 @@ class ClaudeService:
         conversation_intel = _build_conversation_intel(conversation_history)
         intel_section = f"\n\n{conversation_intel}" if conversation_intel else ""
 
+        time_section = f"\n\nUser's current local time: {client_time} — use this naturally when relevant (e.g. 'it's late,' 'good morning,' checking in on their evening). Don't mention it unless it adds something." if client_time else ""
+
         return (
             AMY_BASE_PROMPT
             .replace("{memory_context}", context_section)
             .replace("{conversation_intel}", intel_section)
+            .replace("{client_time}", time_section)
         )
 
     def _sanitize_history(self, history: list[dict]) -> list[dict]:
@@ -261,12 +266,13 @@ class ClaudeService:
         user_message: str,
         conversation_history: list[dict],
         memory_context: str,
+        client_time: str | None = None,
     ) -> AsyncGenerator[str, None]:
         if is_adult_language(user_message):
             return
 
         history = self._sanitize_history(conversation_history[-20:])
-        system_prompt = self._build_system_prompt(memory_context, history)
+        system_prompt = self._build_system_prompt(memory_context, history, client_time)
         messages = history + [{"role": "user", "content": user_message}]
 
         for model in ("claude-opus-4-6", "claude-sonnet-4-6"):

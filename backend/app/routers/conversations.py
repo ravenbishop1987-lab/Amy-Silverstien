@@ -198,6 +198,7 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
 
             user_message = msg.get("content", "").strip()
             conversation_id_str = msg.get("conversation_id")
+            client_time: str | None = msg.get("client_time")
 
             if not user_message:
                 continue
@@ -249,6 +250,7 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
                     user_message=user_message,
                     conversation_history=convo_messages,
                     memory_context=memory_context,
+                    client_time=client_time,
                 ):
                     full_response += token_chunk
                     await websocket.send_json({"type": "token", "content": token_chunk})

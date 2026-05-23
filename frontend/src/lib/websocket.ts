@@ -56,11 +56,16 @@ export class AmyWebSocket {
     if (this.ws?.readyState !== WebSocket.OPEN) {
       throw new Error('WebSocket not connected')
     }
+    const clientTime = new Date().toLocaleString('en-US', {
+      weekday: 'long', month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short',
+    })
     this.ws.send(JSON.stringify({
       type: 'message',
       content,
       conversation_id: conversationId,
       voice_used: voiceUsed,
+      client_time: clientTime,
     }))
   }
 
