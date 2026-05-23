@@ -292,8 +292,11 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     preferred_length     VARCHAR(20) NOT NULL DEFAULT 'medium',
     preferred_tone       VARCHAR(80) NOT NULL DEFAULT 'girl-next-door',
     humor_preference     VARCHAR(40) NOT NULL DEFAULT 'playful',
+    romantic_dynamic     JSONB NOT NULL DEFAULT '{"user_enjoys_teasing": false, "likes_pet_names": false, "comfortable_with_flirting": false, "preferred_style": "sweet", "avoid_styles": ["too aggressive", "too explicit"]}',
     updated_at           TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS romantic_dynamic JSONB NOT NULL DEFAULT '{"user_enjoys_teasing": false, "likes_pet_names": false, "comfortable_with_flirting": false, "preferred_style": "sweet", "avoid_styles": ["too aggressive", "too explicit"]}';
 
 CREATE INDEX IF NOT EXISTS idx_user_preferences_user_id ON user_preferences(user_id);
 

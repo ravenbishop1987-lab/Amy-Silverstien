@@ -58,6 +58,25 @@ ADVICE_TOPICS = {
     "red_flags": ("red flag", "inconsistent", "hot and cold", "actions"),
 }
 
+FLIRT_MODE_LABELS = {
+    0: "supportive only",
+    1: "warm and friendly",
+    2: "light teasing",
+    3: "emotionally intimate",
+    4: "playfully suggestive",
+}
+
+FLIRT_POSITIVE_SIGNALS = (
+    "flirt", "tease me", "be playful", "call me", "cute", "you like me",
+    "i like when you", "keep talking like that", "pet name", "sweetheart",
+    "babe", "baby", "romantic", "make me blush",
+)
+
+FLIRT_NEGATIVE_SIGNALS = (
+    "don't flirt", "dont flirt", "stop flirting", "too much", "creepy",
+    "uncomfortable", "don't call me", "dont call me", "no pet names",
+)
+
 
 def _contains_any(text: str, signals: tuple[str, ...]) -> bool:
     return any(signal in text for signal in signals)
@@ -118,6 +137,7 @@ def analyze_current_message(user_message: str) -> dict[str, Any]:
     mood = _first_match(MOODS, lower, "confused" if questiony else "sad")
     topics = _all_matches(TOPICS, lower)
     relationship_context = _first_match(RELATIONSHIP_CONTEXT, lower, "self")
+    flirt_mode = _flirt_mode_for(lower, intent, mood, emotional_intensity, crisis)
 
     return {
         "user_intent": intent,
@@ -131,6 +151,36 @@ def analyze_current_message(user_message: str) -> dict[str, Any]:
         "relationship_context": relationship_context,
         "urgency_level": "crisis" if crisis else ("high" if emotional_intensity == "high" else "medium"),
         "current_user_need": _current_user_need(hidden_need, emotional_intensity, intent),
+        "flirt_mode": flirt_mode,
+    }
+
+
+def _flirt_mode_for(text: str, intent: str, mood: str, intensity: str, crisis: bool) -> dict[str, Any]:
+    comfort_only = (
+        crisis
+        or intensity == "high"
+        or mood in ("sad", "angry", "anxious", "lonely")
+        or _contains_any(text, ("cry", "panic", "spiral", "trauma", "hurt myself", "abuse"))
+    )
+    if comfort_only:
+        level = 0
+    elif intent == "flirting" and _contains_any(text, ("suggestive", "tension", "romantic", "make me blush")):
+        level = 4
+    elif intent == "flirting":
+        level = 3
+    elif _contains_any(text, ("cute", "tease", "playful", "mysterious", "blush")):
+        level = 2
+    elif mood in ("happy", "hopeful", "excited") or _contains_any(text, ("lol", "haha", "funny")):
+        level = 1
+    else:
+        level = 1
+
+    return {
+        "level": level,
+        "mode": FLIRT_MODE_LABELS[level],
+        "safe_to_flirt": level > 0,
+        "comfort_only": level == 0,
+        "reason": "lowered for vulnerable or serious emotional context" if level == 0 else "stable enough for warm companion energy",
     }
 
 
@@ -358,6 +408,30 @@ def _format_prompt_context(
             + "; avoid "
             + str(preferences.get("avoids") or "generic advice")
         )
+        romantic_dynamic = preferences.get("romantic_dynamic") or {}
+        if romantic_dynamic:
+            lines.append(
+                "- Romantic dynamic memory: "
+                + f"comfortable_with_flirting={romantic_dynamic.get('comfortable_with_flirting')}; "
+                + f"likes_pet_names={romantic_dynamic.get('likes_pet_names')}; "
+                + f"preferred_style={romantic_dynamic.get('preferred_style') or 'sweet/playful'}; "
+                + f"avoid_styles={romantic_dynamic.get('avoid_styles') or ['too aggressive', 'too explicit']}."
+            )
+    flirt = analysis.get("flirt_mode") or {"level": 0, "mode": "supportive only", "safe_to_flirt": False}
+    lines.append(
+        f"- Flirty companion layer: level {flirt['level']} ({flirt['mode']}); "
+        f"safe_to_flirt={flirt['safe_to_flirt']}; reason: {flirt['reason']}."
+    )
+    if flirt["level"] == 0:
+        lines.append("- Flirt behavior: comfort only. No teasing, suggestive language, jealousy jokes, or pet-name-heavy replies.")
+    elif flirt["level"] == 1:
+        lines.append("- Flirt behavior: warm/friendly only; affectionate but mostly supportive.")
+    elif flirt["level"] == 2:
+        lines.append("- Flirt behavior: one light tease or playful observation is allowed if it fits; keep it non-explicit.")
+    elif flirt["level"] == 3:
+        lines.append("- Flirt behavior: emotionally intimate warmth is allowed; make the user feel seen, not sexualized.")
+    else:
+        lines.append("- Flirt behavior: playfully suggestive/coy is allowed, but never explicit, pornographic, aggressive, or manipulative.")
     if analysis["risk_level"] == "crisis":
         lines.append("- SAFETY MODE: stay calm, validate, prioritize immediate safety/support, no flirtation or roleplay.")
     lines.append("- Response formula: validate, reference memory if relevant, add a new insight, give one practical next step, close warmly.")
@@ -405,6 +479,7 @@ async def save_turn_intelligence(
         })
 
     await _upsert_emotional_pattern(uid, user_message, analysis, supa, now)
+    await _maybe_update_romantic_dynamic(uid, user_message, analysis, supa, now)
     await _maybe_save_relationship_entity(uid, user_message, analysis, supa, now)
     await _maybe_save_safety_flag(uid, conversation_id, user_message, analysis, supa, now)
     await _update_conversation_summary(uid, conversation_id, intelligence, supa, now)
@@ -419,7 +494,7 @@ def _should_save_memory(user_message: str, analysis: dict[str, Any]) -> bool:
         or _contains_any(lower, (
             "my name is", "call me", "i have adhd", "i have anxiety", "my ex",
             "my boyfriend", "my girlfriend", "my partner", "i always", "i keep",
-            "i want to", "my goal", "remember",
+            "i want to", "my goal", "remember", "flirt", "tease me", "pet name",
         ))
     )
 
@@ -431,6 +506,8 @@ def _memory_type_for(analysis: dict[str, Any]) -> str:
         return "emotional_pattern"
     if analysis["hidden_need"] == "strategy":
         return "advice_history"
+    if analysis.get("user_intent") == "flirting":
+        return "preference"
     return "user_profile"
 
 
@@ -523,6 +600,75 @@ def _recommended_response(pattern: str) -> str:
 def _thought_loops(user_message: str) -> list[str]:
     loops = re.findall(r"([^.?!]*(?:always|never|hate me|too much|not enough|ruin)[^.?!]*)", user_message, re.I)
     return [_summarize(loop, 120) for loop in loops[:5]]
+
+
+async def _maybe_update_romantic_dynamic(
+    uid: str,
+    user_message: str,
+    analysis: dict[str, Any],
+    supa: AsyncClient,
+    now: str,
+) -> None:
+    lower = user_message.lower()
+    positive = _contains_any(lower, FLIRT_POSITIVE_SIGNALS) or analysis.get("user_intent") == "flirting"
+    negative = _contains_any(lower, FLIRT_NEGATIVE_SIGNALS)
+    if not positive and not negative:
+        return
+
+    existing = await _safe_select(
+        supa.table("user_preferences").select("*").eq("user_id", uid).limit(1)
+    )
+    current = existing[0] if existing else {}
+    dynamic = dict(current.get("romantic_dynamic") or {})
+    avoid_styles = list(dynamic.get("avoid_styles") or ["too aggressive", "too explicit"])
+
+    if negative:
+        dynamic.update({
+            "comfortable_with_flirting": False,
+            "user_enjoys_teasing": False,
+            "likes_pet_names": False if _contains_any(lower, ("pet names", "call me", "babe", "baby", "sweetheart")) else dynamic.get("likes_pet_names", False),
+            "preferred_style": dynamic.get("preferred_style") or "sweet",
+        })
+        if "too much flirting" not in avoid_styles:
+            avoid_styles.append("too much flirting")
+    else:
+        dynamic.update({
+            "comfortable_with_flirting": True,
+            "user_enjoys_teasing": dynamic.get("user_enjoys_teasing", False) or _contains_any(lower, ("tease", "playful", "mysterious")),
+            "likes_pet_names": dynamic.get("likes_pet_names", False) or _contains_any(lower, ("pet name", "call me", "sweetheart", "babe", "baby")),
+            "preferred_style": _preferred_flirt_style(lower, dynamic.get("preferred_style")),
+        })
+
+    dynamic["avoid_styles"] = avoid_styles
+    row = {
+        "responds_to": current.get("responds_to") or ["validation first", "direct honesty", "gentle encouragement", "step-by-step advice", "warm reassurance"],
+        "avoids": current.get("avoids") or ["clinical language", "generic advice", "too many questions", "cold logic", "judgmental tone"],
+        "preferred_length": current.get("preferred_length") or "medium",
+        "preferred_tone": current.get("preferred_tone") or "girl-next-door",
+        "humor_preference": current.get("humor_preference") or "playful",
+        "romantic_dynamic": dynamic,
+        "updated_at": now,
+    }
+
+    if current.get("preference_id"):
+        await _safe_update(
+            supa.table("user_preferences").update(row).eq("preference_id", current["preference_id"])
+        )
+    else:
+        row.update({"preference_id": str(uuid.uuid4()), "user_id": uid})
+        await _safe_insert(supa.table("user_preferences"), row)
+
+
+def _preferred_flirt_style(text: str, current: str | None) -> str:
+    if "country" in text:
+        return "country_girl"
+    if _contains_any(text, ("soft", "gentle", "sweet")):
+        return "soft"
+    if _contains_any(text, ("dominant", "confident", "bossy")):
+        return "dominant"
+    if _contains_any(text, ("tease", "playful", "joke")):
+        return "playful"
+    return current or "sweet"
 
 
 async def _maybe_save_relationship_entity(
