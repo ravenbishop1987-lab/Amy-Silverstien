@@ -63,13 +63,14 @@ FLIRT_MODE_LABELS = {
     1: "warm and friendly",
     2: "light teasing",
     3: "emotionally intimate",
-    4: "playfully suggestive",
+    4: "naughty and playfully suggestive",
 }
 
 FLIRT_POSITIVE_SIGNALS = (
     "flirt", "tease me", "be playful", "call me", "cute", "you like me",
     "i like when you", "keep talking like that", "pet name", "sweetheart",
-    "babe", "baby", "romantic", "make me blush",
+    "babe", "baby", "romantic", "make me blush", "suggestive", "naughty",
+    "spicy", "coy", "tension", "chemistry",
 )
 
 FLIRT_NEGATIVE_SIGNALS = (
@@ -115,7 +116,7 @@ def analyze_current_message(user_message: str) -> dict[str, Any]:
     intent = "venting"
     if crisis:
         intent = "crisis"
-    elif _contains_any(lower, ("flirt", "cute", "hot", "do you like me")):
+    elif _contains_any(lower, ("flirt", "cute", "hot", "do you like me", "naughty", "suggestive", "spicy", "tease me")):
         intent = "flirting"
     elif asks_advice:
         intent = "advice"
@@ -164,11 +165,11 @@ def _flirt_mode_for(text: str, intent: str, mood: str, intensity: str, crisis: b
     )
     if comfort_only:
         level = 0
-    elif intent == "flirting" and _contains_any(text, ("suggestive", "tension", "romantic", "make me blush")):
+    elif intent == "flirting" and _contains_any(text, ("suggestive", "naughty", "spicy", "tension", "coy", "chemistry", "make me blush")):
         level = 4
     elif intent == "flirting":
         level = 3
-    elif _contains_any(text, ("cute", "tease", "playful", "mysterious", "blush")):
+    elif _contains_any(text, ("cute", "tease", "playful", "mysterious", "blush", "naughty", "suggestive")):
         level = 2
     elif mood in ("happy", "hopeful", "excited") or _contains_any(text, ("lol", "haha", "funny")):
         level = 1
@@ -431,7 +432,7 @@ def _format_prompt_context(
     elif flirt["level"] == 3:
         lines.append("- Flirt behavior: emotionally intimate warmth is allowed; make the user feel seen, not sexualized.")
     else:
-        lines.append("- Flirt behavior: playfully suggestive/coy is allowed, but never explicit, pornographic, aggressive, or manipulative.")
+        lines.append("- Flirt behavior: naughty/playfully suggestive/coy is allowed. Use implication, confidence, and charged teasing, but never explicit sexual wording, pornographic detail, aggressive thirst, or manipulation.")
     if analysis["risk_level"] == "crisis":
         lines.append("- SAFETY MODE: stay calm, validate, prioritize immediate safety/support, no flirtation or roleplay.")
     lines.append("- Response formula: validate, reference memory if relevant, add a new insight, give one practical next step, close warmly.")
@@ -494,7 +495,7 @@ def _should_save_memory(user_message: str, analysis: dict[str, Any]) -> bool:
         or _contains_any(lower, (
             "my name is", "call me", "i have adhd", "i have anxiety", "my ex",
             "my boyfriend", "my girlfriend", "my partner", "i always", "i keep",
-            "i want to", "my goal", "remember", "flirt", "tease me", "pet name",
+            "i want to", "my goal", "remember", "flirt", "tease me", "pet name", "naughty", "suggestive", "spicy",
         ))
     )
 
@@ -664,6 +665,8 @@ def _preferred_flirt_style(text: str, current: str | None) -> str:
         return "country_girl"
     if _contains_any(text, ("soft", "gentle", "sweet")):
         return "soft"
+    if _contains_any(text, ("naughty", "suggestive", "spicy", "coy", "tension")):
+        return "naughty_playful"
     if _contains_any(text, ("dominant", "confident", "bossy")):
         return "dominant"
     if _contains_any(text, ("tease", "playful", "joke")):

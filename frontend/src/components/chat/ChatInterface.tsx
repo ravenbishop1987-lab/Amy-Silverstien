@@ -40,7 +40,7 @@ const GIFT_OPTIONS = [
 ]
 
 const NAUGHTY_PATTERNS = [
-  /\b(adult|18\+|nsfw|explicit|naughty|dirty|spicy|erotic|sexual|sensual)\b/i,
+  /\b(adult|18\+|nsfw|explicit|dirty|erotic|sexual|sensual)\b/i,
   /\b(sex|sexy|sext|sexting|horny|aroused|turned on|turn me on|lust|desire|fantasy|fantasies)\b/i,
   /\b(nudes?|naked|undress|strip|striptease|lingerie|thong|panties|bra)\b/i,
   /\b(onlyfans|fanvue|porn|porno|xxx|camgirl|cam boy|webcam|escort|hookup|hook up)\b/i,

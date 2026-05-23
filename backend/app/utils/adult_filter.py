@@ -1,7 +1,7 @@
 import re
 
 ADULT_LANGUAGE_PATTERNS = [
-    r"\b(adult|18\+|nsfw|explicit|naughty|dirty|spicy|erotic|sexual|sensual)\b",
+    r"\b(adult|18\+|nsfw|explicit|dirty|erotic|sexual|sensual)\b",
     r"\b(sex|sexy|sext|sexting|horny|aroused|turned on|turn me on|lust|desire|fantasy|fantasies)\b",
     r"\b(nudes?|naked|undress|strip|striptease|lingerie|thong|panties|bra)\b",
     r"\b(onlyfans|fanvue|porn|porno|xxx|camgirl|cam boy|webcam|escort|hookup|hook up)\b",
