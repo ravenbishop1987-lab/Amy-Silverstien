@@ -29,7 +29,7 @@ import VoiceInput from './VoiceInput'
 import PricingModal from '@/components/subscription/PricingModal'
 import type { ChatMessage, Conversation } from '@/types'
 
-const FANVUE_URL = import.meta.env.VITE_FANVUE_URL || 'https://www.fanvue.com/amysilverstein87'
+const FANVUE_URL = import.meta.env.VITE_FANVUE_URL || 'https://www.fanvue.com/sophieparker'
 
 const GIFT_OPTIONS = [
   { id: 'roses', label: 'Roses', price: '$2.99', Icon: Flower2 },
@@ -191,7 +191,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
       const buffer = await voiceApi.synthesize(content)
       await playAudioBuffer(buffer)
     } catch {
-      toast.error("Couldn't play Amy's voice. Check the ElevenLabs voice settings.")
+      toast.error("Couldn't play Sophie's voice. Check the ElevenLabs voice settings.")
     } finally {
       isSpeakingRef.current = false
       setIsSpeaking(false)
@@ -252,7 +252,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
         timestamp: now,
         voice_used: false,
       })
-      toast.success(`${data.gift_label} sent to Amy`)
+      toast.success(`${data.gift_label} sent to Sophie`)
       navigate(location.pathname, { replace: true })
     }).catch(() => {
       toast.error('Could not confirm that gift payment.')
@@ -392,7 +392,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
         recognitionRunningRef.current = false
         setIsListening(false)
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          toast.error('Microphone permission is blocked. Allow mic access to talk with Amy.')
+          toast.error('Microphone permission is blocked. Allow mic access to talk with Sophie.')
           setVoiceCallActive(false)
         }
       }
@@ -480,7 +480,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
           >
             <Grid2X2 size={17} />
           </button>
-          <div className="font-semibold truncate">Amy Silverstein</div>
+          <div className="font-semibold truncate">Sophie Parker</div>
           <div className="h-5 w-px bg-stone-200" />
           <div className="text-sm font-medium text-stone-600">Main</div>
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
@@ -519,14 +519,14 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
               <div className="w-full max-w-5xl grid grid-cols-[minmax(104px,34vw)_minmax(140px,1fr)] xl:grid-cols-[minmax(200px,320px)_minmax(220px,1fr)] gap-4 sm:gap-8 items-center">
               <div className={`amy-picture-section ${isSpeaking ? 'amy-picture-speaking' : ''}`}>
                 <img
-                  src="/amy-portrait.png"
-                  alt="Amy Silverstein"
+                  src="/sophie-portrait.png"
+                  alt="Sophie Parker"
                   className="w-full h-full object-cover"
                 />
                 <div className="amy-mouth" aria-hidden="true" />
                 <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/65 via-black/18 to-transparent">
-                  <p className="text-white font-semibold leading-tight">Amy Silverstein</p>
-                  <p className="text-white/75 text-xs mt-0.5">Age 39 · AI girlfriend</p>
+                  <p className="text-white font-semibold leading-tight">Sophie Parker</p>
+                  <p className="text-white/75 text-xs mt-0.5">Age 26 · Nashville</p>
                 </div>
               </div>
 
@@ -598,7 +598,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                   type="button"
                   onClick={() => setMuted((value) => !value)}
                   className="flex items-center gap-1.5 text-sm font-medium text-charcoal-900"
-                  title={muted ? 'Unmute Amy voice' : 'Mute Amy voice'}
+                  title={muted ? 'Unmute Sophie voice' : 'Mute Sophie voice'}
                 >
                   {muted ? <MicOff size={16} /> : <Mic size={16} />}
                   {muted ? 'Muted' : 'Mute'}
@@ -610,7 +610,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
           <div className="absolute top-6 left-8 hidden md:block">
             <div className="flex items-center gap-2 rounded-full bg-white/90 border border-stone-200 px-3 py-2 text-xs text-stone-500">
               <span className={`w-2 h-2 rounded-full ${voiceCallActive ? 'bg-emerald-500' : 'bg-stone-300'}`} />
-              {voiceCallActive ? isSpeaking ? 'Amy is speaking' : 'Voice call active' : 'Voice call idle'}
+              {voiceCallActive ? isSpeaking ? 'Sophie is speaking' : 'Voice call active' : 'Voice call idle'}
             </div>
           </div>
         </section>

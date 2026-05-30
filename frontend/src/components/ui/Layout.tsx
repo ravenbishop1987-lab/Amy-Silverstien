@@ -23,7 +23,7 @@ export default function Layout() {
     <div className="min-h-screen bg-cream-100 flex">
       <aside className="hidden sm:flex w-16 bg-white border-r border-cream-300 flex-col items-center py-4 shrink-0">
         <div className="mb-5 h-9 w-9 rounded-xl bg-sage-100 text-sage-700 flex items-center justify-center font-serif text-lg">
-          A
+          S
         </div>
 
         <nav className="flex-1 space-y-2">
