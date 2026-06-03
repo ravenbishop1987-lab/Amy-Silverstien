@@ -170,6 +170,21 @@
   }
 }
 
+/* Creator Mode */
+.creator-mode .amy-bubble {
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.creator-mode .user-bubble {
+  font-size: 1.05rem;
+  line-height: 1.75;
+}
+
+.creator-photo {
+  width: clamp(140px, min(38vw, 36dvh), 360px) !important;
+}
+
 .voice-orb::before,
 .voice-orb::after {
   content: "";

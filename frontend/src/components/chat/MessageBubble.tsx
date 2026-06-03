@@ -17,11 +17,11 @@ export default function MessageBubble({ message, onPlayVoice, canPlayVoice }: Pr
       <div className="flex items-end gap-3 animate-slide-up">
         {/* Amy avatar */}
         <div className="w-8 h-8 rounded-full bg-sage-400 flex items-center justify-center text-white text-xs font-semibold shrink-0 mb-1">
-          A
+          S
         </div>
-        <div className="flex flex-col gap-1 max-w-[80%] min-w-0">
+        <div className="flex flex-col gap-1 max-w-[75%] min-w-0">
           <div className="amy-bubble">
-            <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+            <p className="whitespace-pre-wrap break-words" style={{ lineHeight: '1.65' }}>{message.content}</p>
           </div>
           <div className="flex items-center gap-2 px-1">
             <span className="text-xs text-stone-400">{time}</span>
@@ -42,9 +42,9 @@ export default function MessageBubble({ message, onPlayVoice, canPlayVoice }: Pr
 
   return (
     <div className="flex items-end justify-end gap-3 animate-slide-up">
-      <div className="flex flex-col items-end gap-1 max-w-[80%] min-w-0">
+      <div className="flex flex-col items-end gap-1 max-w-[75%] min-w-0">
         <div className="user-bubble">
-          <p className="whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+          <p className="whitespace-pre-wrap break-words" style={{ lineHeight: '1.65' }}>{message.content}</p>
         </div>
         <span className="text-xs text-stone-400 px-1">{time}</span>
       </div>
@@ -56,7 +56,7 @@ export function TypingIndicator() {
   return (
     <div className="flex items-end gap-3 animate-fade-in">
       <div className="w-8 h-8 rounded-full bg-sage-400 flex items-center justify-center text-white text-xs font-semibold shrink-0">
-        A
+        S
       </div>
       <div className="amy-bubble py-3">
         <div className="typing-dots flex items-center gap-1">
@@ -71,9 +71,9 @@ export function StreamingBubble({ content }: { content: string }) {
   return (
     <div className="flex items-end gap-3 animate-fade-in">
       <div className="w-8 h-8 rounded-full bg-sage-400 flex items-center justify-center text-white text-xs font-semibold shrink-0">
-        A
+        S
       </div>
-      <div className="amy-bubble max-w-[80%] min-w-0">
+      <div className="amy-bubble max-w-[75%] min-w-0">
         <p className="whitespace-pre-wrap break-words leading-relaxed">{content}</p>
         <span className="inline-block w-1 h-4 bg-sage-400 ml-0.5 animate-pulse-soft" />
       </div>

@@ -15,9 +15,7 @@ import {
   Plus,
   Send,
   Smile,
-  SlidersHorizontal,
   Volume2,
-  Wrench,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/stores/auth'
@@ -32,11 +30,18 @@ import type { ChatMessage, Conversation } from '@/types'
 const FANVUE_URL = import.meta.env.VITE_FANVUE_URL || 'https://www.fanvue.com/sophieparker'
 
 const GIFT_OPTIONS = [
-  { id: 'roses', label: 'Roses', price: '$2.99', Icon: Flower2 },
-  { id: 'candy', label: 'Candy', price: '$1.99', Icon: Candy },
-  { id: 'kisses', label: 'Kisses', price: '$1.49', Icon: Heart },
-  { id: 'hugs', label: 'Hugs', price: '$1.49', Icon: HandHeart },
-  { id: 'smiles', label: 'Smiles', price: '$0.99', Icon: Smile },
+  { id: 'roses', label: 'Rose', price: '$2.99', Icon: Flower2 },
+  { id: 'candy', label: 'Sweet Note', price: '$1.99', Icon: Candy },
+  { id: 'kisses', label: 'Kiss', price: '$1.49', Icon: Heart },
+  { id: 'hugs', label: 'Hug', price: '$1.49', Icon: HandHeart },
+  { id: 'smiles', label: 'Smile', price: '$0.99', Icon: Smile },
+]
+
+const SUGGESTED_PROMPTS = [
+  'Why do I get attached so fast?',
+  'Calm my overthinking',
+  'Why do texts make me anxious?',
+  'Help me feel safe tonight',
 ]
 
 const NAUGHTY_PATTERNS = [
@@ -122,6 +127,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
   const [giftMessage, setGiftMessage] = useState('')
   const [giftLoading, setGiftLoading] = useState<string | null>(null)
   const [messagesHydrated, setMessagesHydrated] = useState(false)
+  const [creatorMode, setCreatorMode] = useState(false)
   const wsRef = useRef<AmyWebSocket | null>(null)
   const setIsWaitingRef = useRef(setIsWaiting)
   const mutedRef = useRef(muted)
@@ -469,41 +475,47 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
     navigate('/chat')
   }
 
+  const voiceStatusLabel = isSpeaking
+    ? 'Sophie is talking…'
+    : isWaiting || isStreaming
+      ? 'Sophie is thinking…'
+      : voiceCallActive
+        ? 'Voice chat ready'
+        : 'Sophie is ready to talk'
+
   return (
-    <div className="h-[100dvh] bg-white text-charcoal-900 flex flex-col overflow-hidden">
-      <div className="h-16 border-b border-stone-200 px-5 lg:px-8 flex items-center justify-between shrink-0">
+    <div className={`h-[100dvh] bg-white text-charcoal-900 flex flex-col overflow-hidden ${creatorMode ? 'creator-mode' : ''}`}>
+
+      {/* Header */}
+      <div className={`border-b border-stone-200 px-5 lg:px-8 flex items-center justify-between shrink-0 ${creatorMode ? 'h-12' : 'h-16'}`}>
         <div className="flex items-center gap-3 min-w-0">
-          <button
-            type="button"
-            className="w-9 h-9 rounded-lg border border-stone-200 text-stone-500 flex items-center justify-center hover:bg-stone-50"
-            title="Apps"
-          >
-            <Grid2X2 size={17} />
-          </button>
+          {!creatorMode && (
+            <button
+              type="button"
+              className="w-9 h-9 rounded-lg border border-stone-200 text-stone-500 flex items-center justify-center hover:bg-stone-50"
+              title="Apps"
+            >
+              <Grid2X2 size={17} />
+            </button>
+          )}
           <div className="font-semibold truncate">Sophie Parker</div>
-          <div className="h-5 w-px bg-stone-200" />
-          <div className="text-sm font-medium text-stone-600">Main</div>
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
-            {isConnected ? 'Live 100%' : 'Connecting'}
-          </span>
+          {!creatorMode && (
+            <>
+              <div className="h-5 w-px bg-stone-200" />
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${isConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
+                {isConnected ? 'Live' : 'Connecting'}
+              </span>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => toast('Voice settings use ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID from backend/.env')}
-            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-stone-50"
+            onClick={() => setCreatorMode(v => !v)}
+            className={`hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${creatorMode ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'hover:bg-stone-50 text-stone-600'}`}
           >
-            <SlidersHorizontal size={16} />
-            Voice settings
-          </button>
-          <button
-            type="button"
-            className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-stone-50"
-          >
-            <Wrench size={16} />
-            Mock tools
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">Off</span>
+            🎬 {creatorMode ? 'Exit Creator' : 'Creator Mode'}
           </button>
           <button onClick={startNewConversation} className="btn-ghost flex items-center gap-1.5 text-sm">
             <Plus size={15} />
@@ -513,55 +525,68 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
-        <section className="relative flex-none overflow-y-auto overflow-x-hidden lg:flex-1 bg-[repeating-linear-gradient(135deg,#fbfbfb_0,#fbfbfb_12px,#f7f7f7_12px,#f7f7f7_24px)]">
+
+        {/* Left panel — Sophie profile + gifts */}
+        <section className="relative flex-none overflow-y-auto overflow-x-hidden lg:flex-1 bg-[repeating-linear-gradient(135deg,#fdfcfb_0,#fdfcfb_12px,#f9f7f5_12px,#f9f7f5_24px)]">
           <div className="flex flex-col px-3 py-2 sm:px-6 sm:py-6">
+
+            {/* Profile card + orb */}
             <div className="shrink-0 flex items-center justify-center pb-2 sm:pb-4">
               <div className="w-full max-w-5xl grid grid-cols-[minmax(104px,34vw)_minmax(140px,1fr)] xl:grid-cols-[minmax(200px,320px)_minmax(220px,1fr)] gap-4 sm:gap-8 items-center">
-              <div className={`amy-picture-section ${isSpeaking ? 'amy-picture-speaking' : ''}`}>
-                <img
-                  src="/sophie-portrait.png"
-                  alt="Sophie Parker"
-                  className="w-full h-full object-cover"
-                />
-                <div className="amy-mouth" aria-hidden="true" />
-                <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/65 via-black/18 to-transparent">
-                  <p className="text-white font-semibold leading-tight">Sophie Parker</p>
-                  <p className="text-white/75 text-xs mt-0.5">Age 26 · Nashville</p>
+
+                {/* Photo card */}
+                <div className={`amy-picture-section ${isSpeaking ? 'amy-picture-speaking' : ''} ${creatorMode ? 'creator-photo' : ''}`}>
+                  <img
+                    src="/sophie-portrait.png"
+                    alt="Sophie Parker"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="amy-mouth" aria-hidden="true" />
+                  <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
+                    <p className={`text-white font-semibold leading-tight ${creatorMode ? 'text-lg' : ''}`}>Sophie Parker</p>
+                    <p className="text-white/70 text-xs mt-0.5">Age 26 · Nashville</p>
+                    <p className="text-white/50 text-[10px] mt-0.5 hidden sm:block">Flirty ADHD emotional support</p>
+                  </div>
+                </div>
+
+                {/* Orb + call button */}
+                <div className="flex flex-col items-center justify-center min-w-0 gap-2">
+                  <div className={`voice-orb ${voiceCallActive ? 'voice-orb-live' : ''} ${isSpeaking ? 'voice-orb-speaking' : ''}`} />
+                  <p className="text-xs text-stone-400 text-center leading-tight mt-1">{voiceStatusLabel}</p>
+                  <button
+                    type="button"
+                    onClick={toggleCall}
+                    className={`relative z-10 mt-1 w-14 h-14 rounded-full border-4 border-white shadow-card flex items-center justify-center transition-all ${
+                      voiceCallActive ? 'bg-rose-500 text-white hover:bg-rose-600' : 'bg-charcoal-900 text-white hover:bg-charcoal-800'
+                    }`}
+                    title={voiceCallActive ? 'End voice call' : 'Start voice call'}
+                  >
+                    {voiceCallActive ? <PhoneOff size={22} /> : <Phone size={22} />}
+                  </button>
                 </div>
               </div>
-
-              <div className="flex flex-col items-center justify-center min-w-0">
-                <div className={`voice-orb ${voiceCallActive ? 'voice-orb-live' : ''} ${isSpeaking ? 'voice-orb-speaking' : ''}`} />
-                <button
-                  type="button"
-                  onClick={toggleCall}
-                  className={`relative z-10 mt-4 w-14 h-14 rounded-full border-4 border-white shadow-card flex items-center justify-center transition-all ${
-                    voiceCallActive ? 'bg-rose-500 text-white hover:bg-rose-600' : 'bg-charcoal-900 text-white hover:bg-charcoal-800'
-                  }`}
-                  title={voiceCallActive ? 'End voice call' : 'Start voice call'}
-                >
-                  {voiceCallActive ? <PhoneOff size={22} /> : <Phone size={22} />}
-                </button>
-              </div>
             </div>
-          </div>
 
+            {/* Gift section */}
             <div className="shrink-0 mx-auto w-full max-w-3xl">
               <div className="rounded-2xl border border-stone-200 bg-white/95 shadow-soft p-2 sm:p-3">
+                <p className="text-xs text-stone-400 font-medium text-center mb-2">Send Sophie a gift with your message 💛</p>
                 <div className="grid grid-cols-5 gap-1 sm:gap-2">
                   {GIFT_OPTIONS.map(({ id, label, price, Icon }) => (
                     <button
                       key={id}
                       type="button"
                       onClick={() => setSelectedGift(id)}
-                      className={`h-10 sm:h-16 rounded-xl border flex flex-col items-center justify-center gap-0.5 sm:gap-1 transition-colors ${
-                        selectedGift === id ? 'border-sage-400 bg-sage-50 text-sage-800' : 'border-stone-200 text-stone-600 hover:bg-stone-50'
+                      className={`h-10 sm:h-16 rounded-xl border flex flex-col items-center justify-center gap-0.5 sm:gap-1 transition-all ${
+                        selectedGift === id
+                          ? 'border-amber-300 bg-amber-50 text-amber-800 shadow-sm'
+                          : 'border-stone-200 text-stone-500 hover:bg-stone-50 hover:border-stone-300'
                       }`}
                       title={`${label} ${price}`}
                     >
-                      <Icon size={17} />
-                      <span className="text-[10px] sm:text-[11px] font-semibold leading-none">{label}</span>
-                      <span className="text-[10px] text-stone-400 leading-none">{price}</span>
+                      <Icon size={15} />
+                      <span className="text-[9px] sm:text-[10px] font-semibold leading-none">{label}</span>
+                      <span className="text-[9px] sm:text-[10px] text-stone-400 leading-none">{price}</span>
                     </button>
                   ))}
                 </div>
@@ -570,30 +595,22 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                     value={giftMessage}
                     onChange={(e) => setGiftMessage(e.target.value)}
                     maxLength={160}
-                    placeholder="Add a personal message"
-                    className="min-w-0 flex-1 rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-sage-400"
+                    placeholder="Add a sweet message…"
+                    className="min-w-0 flex-1 rounded-xl border border-stone-200 px-3 py-2 text-sm outline-none focus:border-amber-300 transition-colors"
                   />
                   <button
                     type="button"
                     onClick={sendGift}
                     disabled={!!giftLoading}
-                    className="shrink-0 rounded-xl bg-charcoal-900 px-4 py-2 text-sm font-semibold text-white hover:bg-charcoal-800 disabled:bg-stone-300"
+                    className="shrink-0 rounded-xl bg-charcoal-900 px-4 py-2 text-sm font-semibold text-white hover:bg-charcoal-800 disabled:bg-stone-300 transition-colors"
                   >
-                    {giftLoading ? 'Opening...' : 'Send gift'}
+                    {giftLoading ? 'Opening…' : 'Send 💛'}
                   </button>
                 </div>
               </div>
 
+              {/* Mute bar */}
               <div className="mx-auto mt-1.5 sm:mt-3 flex w-fit items-center gap-2 rounded-full bg-white/95 border border-stone-200 shadow-soft px-4 py-2 sm:py-3">
-                <button
-                  type="button"
-                  onClick={() => toast('Voice style is controlled by backend ElevenLabs settings.')}
-                  className="text-stone-500 hover:text-charcoal-900"
-                  title="Voice settings"
-                >
-                  <SlidersHorizontal size={16} />
-                </button>
-                <div className="w-px h-5 bg-stone-200" />
                 <button
                   type="button"
                   onClick={() => setMuted((value) => !value)}
@@ -604,26 +621,37 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                   {muted ? 'Muted' : 'Mute'}
                 </button>
               </div>
-            </div>
-          </div>
 
-          <div className="absolute top-6 left-8 hidden md:block">
-            <div className="flex items-center gap-2 rounded-full bg-white/90 border border-stone-200 px-3 py-2 text-xs text-stone-500">
-              <span className={`w-2 h-2 rounded-full ${voiceCallActive ? 'bg-emerald-500' : 'bg-stone-300'}`} />
-              {voiceCallActive ? isSpeaking ? 'Sophie is speaking' : 'Voice call active' : 'Voice call idle'}
+              {/* CTA */}
+              {isEmpty && (
+                <div className="mt-3 text-center hidden lg:block">
+                  <p className="text-xs text-stone-400 mb-2">Want Sophie to answer you personally?</p>
+                  <button
+                    onClick={startNewConversation}
+                    className="text-xs font-semibold text-sage-700 hover:text-sage-800 underline underline-offset-2"
+                  >
+                    Start chatting
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </section>
 
-        <section className="flex-1 min-h-0 w-full lg:w-[40%] lg:min-w-[390px] border-t lg:border-t-0 lg:border-l border-stone-200 bg-white flex flex-col">
-          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5">
+        {/* Right panel — chat */}
+        <section className={`flex-1 min-h-0 w-full lg:w-[40%] lg:min-w-[390px] border-t lg:border-t-0 lg:border-l border-stone-200 bg-white flex flex-col ${creatorMode ? 'lg:min-w-[480px]' : ''}`}>
+          <div className={`flex-1 min-h-0 overflow-y-auto py-6 space-y-6 ${creatorMode ? 'px-8 text-lg' : 'px-5'}`}>
+
             {isEmpty && (
-              <div className="h-full min-h-[360px] flex flex-col items-center justify-center text-center text-stone-400">
-                <div className="w-10 h-10 rounded-xl border border-stone-200 flex items-center justify-center mb-3">
-                  <MessageCircle size={18} />
+              <div className="h-full min-h-[360px] flex flex-col items-center justify-center text-center px-4">
+                <div className="w-10 h-10 rounded-2xl bg-sage-50 border border-sage-200 flex items-center justify-center mb-4">
+                  <MessageCircle size={18} className="text-sage-500" />
                 </div>
-                <p className="max-w-[230px] text-sm leading-relaxed">
-                  Call or send a message to start a new conversation
+                <p className="font-serif text-lg text-charcoal-800 leading-snug mb-2">
+                  Ask Sophie what your overthinking brain won't let go of tonight.
+                </p>
+                <p className="text-sm text-stone-400 leading-relaxed max-w-[280px]">
+                  She can help with ADHD attachment, dating anxiety, reassurance, and late-night emotional spirals.
                 </p>
               </div>
             )}
@@ -656,7 +684,26 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
             <div ref={bottomRef} />
           </div>
 
-          <div className="px-5 py-5 shrink-0">
+          {/* Input area */}
+          <div className="px-5 py-4 shrink-0 border-t border-stone-100">
+
+            {/* Suggested prompts — only when empty */}
+            {isEmpty && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {SUGGESTED_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => sendMessage(prompt)}
+                    disabled={isStreaming || isWaiting}
+                    className="text-xs px-3 py-1.5 rounded-full border border-stone-200 bg-stone-50 text-stone-600 hover:bg-sage-50 hover:border-sage-300 hover:text-sage-800 transition-colors disabled:opacity-40"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="rounded-3xl border border-stone-200 bg-white shadow-soft p-3 flex items-end gap-3">
               {canUseVoice && (
                 <VoiceInput onTranscribed={(t) => sendMessage(t, true)} disabled={isStreaming || isWaiting || muted} />
@@ -666,9 +713,9 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                 value={input}
                 onChange={handleTextareaChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Send a message to start a chat"
+                placeholder="Talk to Sophie…"
                 rows={1}
-                className="flex-1 resize-none outline-none text-charcoal-800 placeholder-stone-500 text-sm leading-relaxed px-1 py-3"
+                className={`flex-1 resize-none outline-none text-charcoal-800 placeholder-stone-400 leading-relaxed px-1 py-3 ${creatorMode ? 'text-base' : 'text-sm'}`}
                 disabled={isStreaming || isWaiting}
                 style={{ maxHeight: 150 }}
               />
@@ -681,12 +728,12 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                 {input.trim() ? <Send size={17} /> : <Play size={17} fill="currentColor" />}
               </button>
             </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-stone-400">
+            <div className="mt-2 flex items-center justify-between text-xs text-stone-400">
               <span>
                 {!voiceSupported ? 'Browser speech recognition unavailable' :
-                  isListening ? 'Listening...' :
-                  voiceCallActive ? 'Talk freely. Amy will answer out loud.' :
-                  canUseVoice ? 'Premium voice enabled' : 'Free tier'}
+                  isListening ? 'Listening…' :
+                  voiceCallActive ? 'Talk freely — Sophie will answer out loud.' :
+                  canUseVoice ? 'Premium voice enabled' : 'Free tier · 3 chats/day'}
               </span>
               <button
                 type="button"
@@ -694,10 +741,17 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                 className="inline-flex items-center gap-1.5 text-sage-700 hover:text-sage-800 font-medium"
               >
                 <Volume2 size={13} />
-                {canUseVoice ? voiceCallActive ? 'Stop voice mode' : 'Start voice mode' : 'Upgrade for voice'}
+                {canUseVoice ? voiceCallActive ? 'Stop voice' : 'Start voice' : 'Upgrade for voice'}
               </button>
             </div>
           </div>
+
+          {/* Creator mode watermark */}
+          {creatorMode && (
+            <div className="text-center py-2 text-[11px] text-stone-400 shrink-0 border-t border-stone-100">
+              Chat with Sophie at <span className="font-medium text-stone-500">sophieparker.online</span>
+            </div>
+          )}
         </section>
       </div>
 
