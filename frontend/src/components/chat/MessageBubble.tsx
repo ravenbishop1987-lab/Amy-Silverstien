@@ -29,7 +29,7 @@ export default function MessageBubble({ message, onPlayVoice, canPlayVoice }: Pr
               <button
                 onClick={() => onPlayVoice(message.content)}
                 className="text-stone-400 hover:text-sage-500 transition-colors"
-                title="Play as Sophie's voice"
+                title="Play as Amy's voice"
               >
                 <Volume2 size={13} />
               </button>

@@ -51,7 +51,7 @@ export default function PricingModal({ onClose }: Props) {
         <div className="flex items-start justify-between mb-6">
           <div>
             <h2 className="font-serif text-2xl text-charcoal-900">Unlock more Sophie</h2>
-            <p className="text-stone-500 text-sm mt-1">Get unlimited conversations + Sophie's actual voice</p>
+            <p className="text-stone-500 text-sm mt-1">Get unlimited conversations + Amy's actual voice</p>
           </div>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600 p-1">
             <X size={20} />
@@ -88,7 +88,7 @@ export default function PricingModal({ onClose }: Props) {
               <p className="text-xs text-stone-400 mt-0.5">or $2.99 for 50</p>
             </div>
             <ul className="space-y-2 text-sm text-stone-600 mb-4">
-              {['Unlimited text convos', "Sophie's voice", 'Pay as you go', 'No commitment'].map((f) => (
+              {['Unlimited text convos', "Amy's voice", 'Pay as you go', 'No commitment'].map((f) => (
                 <li key={f} className="flex items-center gap-2">
                   <Check size={13} className="text-sage-400 shrink-0" />{f}
                 </li>
@@ -126,7 +126,7 @@ export default function PricingModal({ onClose }: Props) {
             <ul className="space-y-2 text-sm text-stone-600 mb-4">
               {[
                 'Unlimited everything',
-                "Sophie's voice on every message",
+                "Amy's voice on every message",
                 'Export conversations (PDF)',
                 'Memory bank analytics',
                 'Priority response',

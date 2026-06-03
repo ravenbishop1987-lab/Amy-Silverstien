@@ -27,7 +27,7 @@ import VoiceInput from './VoiceInput'
 import PricingModal from '@/components/subscription/PricingModal'
 import type { ChatMessage, Conversation } from '@/types'
 
-const FANVUE_URL = import.meta.env.VITE_FANVUE_URL || 'https://www.fanvue.com/sophieparker'
+const FANVUE_URL = import.meta.env.VITE_FANVUE_URL || 'https://www.fanvue.com/amysilverstein87'
 
 const GIFT_OPTIONS = [
   { id: 'roses', label: 'Rose', price: '$2.99', Icon: Flower2 },
@@ -197,7 +197,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
       const buffer = await voiceApi.synthesize(content)
       await playAudioBuffer(buffer)
     } catch {
-      toast.error("Couldn't play Sophie's voice. Check the ElevenLabs voice settings.")
+      toast.error("Couldn't play Amy's voice. Check the ElevenLabs voice settings.")
     } finally {
       isSpeakingRef.current = false
       setIsSpeaking(false)
@@ -258,7 +258,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
         timestamp: now,
         voice_used: false,
       })
-      toast.success(`${data.gift_label} sent to Sophie`)
+      toast.success(`${data.gift_label} sent to Amy`)
       navigate(location.pathname, { replace: true })
     }).catch(() => {
       toast.error('Could not confirm that gift payment.')
@@ -476,12 +476,12 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
   }
 
   const voiceStatusLabel = isSpeaking
-    ? 'Sophie is talking…'
+    ? 'Amy is talking…'
     : isWaiting || isStreaming
-      ? 'Sophie is thinking…'
+      ? 'Amy is thinking…'
       : voiceCallActive
         ? 'Voice chat ready'
-        : 'Sophie is ready to talk'
+        : 'Amy is ready to talk'
 
   return (
     <div className={`h-[100dvh] bg-white text-charcoal-900 flex flex-col overflow-hidden ${creatorMode ? 'creator-mode' : ''}`}>
@@ -498,7 +498,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
               <Grid2X2 size={17} />
             </button>
           )}
-          <div className="font-semibold truncate">Sophie Parker</div>
+          <div className="font-semibold truncate">Amy Silverstein</div>
           {!creatorMode && (
             <>
               <div className="h-5 w-px bg-stone-200" />
@@ -537,13 +537,13 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                 {/* Photo card */}
                 <div className={`amy-picture-section ${isSpeaking ? 'amy-picture-speaking' : ''} ${creatorMode ? 'creator-photo' : ''}`}>
                   <img
-                    src="/sophie-portrait.png"
-                    alt="Sophie Parker"
+                    src="/amy-portrait.png"
+                    alt="Amy Silverstein"
                     className="w-full h-full object-cover"
                   />
                   <div className="amy-mouth" aria-hidden="true" />
                   <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
-                    <p className={`text-white font-semibold leading-tight ${creatorMode ? 'text-lg' : ''}`}>Sophie Parker</p>
+                    <p className={`text-white font-semibold leading-tight ${creatorMode ? 'text-lg' : ''}`}>Amy Silverstein</p>
                     <p className="text-white/70 text-xs mt-0.5">Age 26 · Nashville</p>
                     <p className="text-white/50 text-[10px] mt-0.5 hidden sm:block">Flirty ADHD emotional support</p>
                   </div>
@@ -713,7 +713,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                 value={input}
                 onChange={handleTextareaChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Talk to Sophie…"
+                placeholder="Talk to Amy…"
                 rows={1}
                 className={`flex-1 resize-none outline-none text-charcoal-800 placeholder-stone-400 leading-relaxed px-1 py-3 ${creatorMode ? 'text-base' : 'text-sm'}`}
                 disabled={isStreaming || isWaiting}
@@ -749,7 +749,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
           {/* Creator mode watermark */}
           {creatorMode && (
             <div className="text-center py-2 text-[11px] text-stone-400 shrink-0 border-t border-stone-100">
-              Chat with Sophie at <span className="font-medium text-stone-500">sophieparker.online</span>
+              Chat with Amy at <span className="font-medium text-stone-500">amysilverstein87.online</span>
             </div>
           )}
         </section>

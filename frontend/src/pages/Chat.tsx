@@ -17,7 +17,7 @@ function ChatAuthGate() {
             <MessageCircle size={18} />
           </div>
           <div>
-            <div className="font-semibold leading-tight">Sophie Parker</div>
+            <div className="font-semibold leading-tight">Amy Silverstein</div>
             <div className="text-xs text-stone-500">Create an account to start chatting</div>
           </div>
         </div>
@@ -32,9 +32,9 @@ function ChatAuthGate() {
           <div className="absolute inset-0 flex items-center justify-center p-6">
             <div className="w-full max-w-4xl grid grid-cols-[minmax(120px,280px)_minmax(180px,1fr)] gap-5 sm:gap-10 items-center opacity-40 blur-[1px] pointer-events-none select-none">
               <div className="amy-picture-section">
-                <img src="/sophie-portrait.png" alt="Sophie Parker" className="w-full h-full object-cover" />
+                <img src="/amy-portrait.png" alt="Amy Silverstein" className="w-full h-full object-cover" />
                 <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/65 via-black/18 to-transparent">
-                  <p className="text-white font-semibold leading-tight">Sophie Parker</p>
+                  <p className="text-white font-semibold leading-tight">Amy Silverstein</p>
                   <p className="text-white/75 text-xs mt-0.5">Age 26 · Nashville</p>
                 </div>
               </div>
@@ -57,7 +57,7 @@ function ChatAuthGate() {
                 Join before you chat
               </h1>
               <p className="mt-3 text-sm sm:text-base text-stone-600 leading-relaxed">
-                Your account keeps Sophie's memory, conversation history, and voice credits tied to you.
+                Your account keeps Amy's memory, conversation history, and voice credits tied to you.
               </p>
             </div>
           </div>

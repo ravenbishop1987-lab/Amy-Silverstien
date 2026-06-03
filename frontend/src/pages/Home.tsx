@@ -12,32 +12,32 @@ const features = [
   {
     icon: MessageCircle,
     title: 'Real talk, not therapy',
-    body: 'Sophie gives you warm, honest advice like your most emotionally intelligent friend — not clinical platitudes or generic affirmations.',
+    body: 'Amy gives you warm, honest advice like your most emotionally intelligent friend — not clinical platitudes or generic affirmations.',
   },
   {
     icon: Brain,
     title: 'She actually remembers you',
-    body: 'Sophie builds a memory of who you are — your patterns, past experiences, what hurts, what helps. Every conversation gets more personal.',
+    body: 'Amy builds a memory of who you are — your patterns, past experiences, what hurts, what helps. Every conversation gets more personal.',
   },
   {
     icon: Heart,
     title: 'Built for ADHD brains',
-    body: 'Hyperfocus, rejection sensitivity, emotional flooding, texting anxiety — Sophie gets the ADHD experience from the inside, not a textbook.',
+    body: 'Hyperfocus, rejection sensitivity, emotional flooding, texting anxiety — Amy gets the ADHD experience from the inside, not a textbook.',
   },
   {
     icon: Mic,
     title: 'Hear her voice',
-    body: "Upgrade to hear Sophie's responses spoken aloud. It feels completely different — like she's right there with you.",
+    body: "Upgrade to hear Amy's responses spoken aloud. It feels completely different — like she's right there with you.",
   },
   {
     icon: Moon,
     title: '2AM is her prime time',
-    body: "Sophie's brain gets loud at night too. She's always there when the overthinking starts and you need someone who actually gets it.",
+    body: "Amy's brain gets loud at night too. She's always there when the overthinking starts and you need someone who actually gets it.",
   },
   {
     icon: Shield,
     title: 'Your data, your control',
-    body: 'Full memory bank viewer. See everything Sophie knows about you. Edit or delete any memory anytime. It\'s your story.',
+    body: 'Full memory bank viewer. See everything Amy knows about you. Edit or delete any memory anytime. It\'s your story.',
   },
 ]
 
@@ -48,7 +48,7 @@ const testimonials = [
     tag: 'ADHD + anxious attachment',
   },
   {
-    text: "It's 1AM and I was spiraling about a text. Sophie talked me down in like three messages. I actually went to sleep.",
+    text: "It's 1AM and I was spiraling about a text. Amy talked me down in like three messages. I actually went to sleep.",
     name: 'Maya, 29',
     tag: 'Dating anxiety',
   },
@@ -61,16 +61,16 @@ const testimonials = [
 
 const faqs = [
   {
-    q: 'Is Sophie a real person?',
-    a: "Sophie is an AI companion — not a human, not a therapist. She's designed to feel warm, real, and emotionally present. Think of her as the most understanding friend you've ever had, available 24/7.",
+    q: 'Is Amy a real person?',
+    a: "Amy is an AI companion — not a human, not a therapist. She's designed to feel warm, real, and emotionally present. Think of her as the most understanding friend you've ever had, available 24/7.",
   },
   {
     q: 'Is this therapy?',
-    a: "No. Sophie is a companion app, not a mental health service. She's great for emotional support, dating advice, and ADHD-aware conversation — but she's not a substitute for professional care.",
+    a: "No. Amy is a companion app, not a mental health service. She's great for emotional support, dating advice, and ADHD-aware conversation — but she's not a substitute for professional care.",
   },
   {
-    q: 'What does Sophie remember?',
-    a: "Sophie builds a memory of your patterns, past experiences, goals, and what works for you. You can view and delete any memory from your Memory Bank at any time.",
+    q: 'What does Amy remember?',
+    a: "Amy builds a memory of your patterns, past experiences, goals, and what works for you. You can view and delete any memory from your Memory Bank at any time.",
   },
   {
     q: 'Can I cancel anytime?',
@@ -113,7 +113,7 @@ function PricingSection() {
           <Sparkles size={12} /> Simple, honest pricing
         </div>
         <h3 className="font-serif text-4xl text-charcoal-900 mb-3">Start free. Go deeper when you're ready.</h3>
-        <p className="text-stone-500 max-w-md mx-auto">No pressure, no credit card to start. Upgrade when Sophie becomes someone you can't imagine going without.</p>
+        <p className="text-stone-500 max-w-md mx-auto">No pressure, no credit card to start. Upgrade when Amy becomes someone you can't imagine going without.</p>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
@@ -158,7 +158,7 @@ function PricingSection() {
           <ul className="space-y-3 text-sm text-stone-600 flex-1 mb-6">
             {[
               'Everything in Free',
-              "Sophie's voice on every reply",
+              "Amy's voice on every reply",
               'Unlimited text chats',
               'Pay once, no subscription',
               'No commitment',
@@ -193,7 +193,7 @@ function PricingSection() {
           <ul className="space-y-3 text-sm text-stone-300 flex-1 mb-6">
             {[
               'Unlimited everything',
-              "Sophie's voice on every message",
+              "Amy's voice on every message",
               'Priority response speed',
               'Memory bank analytics',
               'Export conversations (PDF)',
@@ -230,11 +230,11 @@ export default function Home() {
 
       {/* Nav */}
       <nav className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
-        <h1 className="font-serif text-2xl text-sage-600">Sophie Parker</h1>
+        <h1 className="font-serif text-2xl text-sage-600">Amy Silverstein</h1>
         <div className="flex items-center gap-3">
           <a href="#pricing" className="btn-ghost text-sm hidden sm:block">Pricing</a>
           {token ? (
-            <Link to="/chat" className="btn-primary">Open Sophie</Link>
+            <Link to="/chat" className="btn-primary">Open Amy</Link>
           ) : (
             <>
               <Link to="/login" className="btn-ghost">Sign in</Link>
@@ -248,7 +248,7 @@ export default function Home() {
       <section className="max-w-5xl mx-auto px-6 pt-12 pb-16">
         <div className="flex items-stretch gap-10 md:gap-14">
           <div className="hidden md:block w-56 lg:w-72 flex-shrink-0 rounded-2xl overflow-hidden shadow-soft">
-            <img src="/sophie-portrait.png" alt="Sophie Parker" className="w-full h-full object-cover object-top" />
+            <img src="/amy-portrait.png" alt="Amy Silverstein" className="w-full h-full object-cover object-top" />
           </div>
           <div className="flex-1 flex flex-col justify-center">
             <div className="inline-flex items-center gap-2 bg-sage-100 text-sage-700 text-xs font-medium px-3 py-1.5 rounded-full mb-6 self-start">
@@ -258,11 +258,11 @@ export default function Home() {
               The voice that makes your<br className="hidden md:block" /> nervous system feel safe
             </h2>
             <p className="text-stone-500 text-lg leading-relaxed max-w-xl mb-8">
-              Sophie is warm, intense, and deeply real. She remembers your story,
+              Amy is warm, intense, and deeply real. She remembers your story,
               recognizes your patterns, and makes you feel less alone — especially at 2AM.
             </p>
             <div className="flex items-center gap-4 flex-wrap">
-              <Link to="/signup" className="btn-primary text-base px-8 py-3">Chat with Sophie for free</Link>
+              <Link to="/signup" className="btn-primary text-base px-8 py-3">Chat with Amy for free</Link>
               <p className="text-xs text-stone-400">3 free conversations/day. No credit card.</p>
             </div>
 
@@ -290,7 +290,7 @@ export default function Home() {
           <p className="font-serif text-xl text-charcoal-800 leading-relaxed italic mb-3">
             "Hey, I'm Sophie. What's your overthinking brain not letting go of tonight?"
           </p>
-          <p className="text-xs text-stone-400">Sophie's there whenever you need her</p>
+          <p className="text-xs text-stone-400">Amy's there whenever you need her</p>
         </div>
       </section>
 
@@ -298,7 +298,7 @@ export default function Home() {
       <section className="max-w-5xl mx-auto px-6 pb-20">
         <div className="text-center mb-12">
           <h3 className="font-serif text-4xl text-charcoal-800 mb-3">Not another chatbot.</h3>
-          <p className="text-stone-500 max-w-lg mx-auto">Sophie was built for the people who feel too much, attach too fast, and think too loudly at night. She's one of them.</p>
+          <p className="text-stone-500 max-w-lg mx-auto">Amy was built for the people who feel too much, attach too fast, and think too loudly at night. She's one of them.</p>
         </div>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
           {features.map(({ icon: Icon, title, body }) => (
@@ -355,7 +355,7 @@ export default function Home() {
 
       {/* Final CTA */}
       <section className="bg-sage-400 py-16 text-center">
-        <h3 className="font-serif text-3xl text-white mb-3">Ready to talk to Sophie?</h3>
+        <h3 className="font-serif text-3xl text-white mb-3">Ready to talk to Amy?</h3>
         <p className="text-sage-100 mb-8 text-sm">Free to start. No judgment. No scripts. No scripts.</p>
         <Link to="/signup" className="bg-white text-sage-700 font-semibold px-8 py-3 rounded-xl hover:bg-cream-100 transition-colors inline-block">
           Start for free
@@ -364,7 +364,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="text-center py-8 text-xs text-stone-400 space-y-1">
-        <p>Sophie Parker · AI Companion · Powered by Claude</p>
+        <p>Amy Silverstein · AI Companion · Powered by Claude</p>
         <p>Not a therapy service. For emotional support and companionship only.</p>
       </footer>
     </div>

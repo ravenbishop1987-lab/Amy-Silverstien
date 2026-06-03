@@ -87,7 +87,7 @@ export default function GoogleAuthButton({ mode }: Props) {
                 created_at: new Date().toISOString(),
                 profile: null,
               })
-              toast.success(mode === 'signup' ? "Let's go! Sophie's ready to chat." : 'Welcome back!')
+              toast.success(mode === 'signup' ? "Let's go! Amy's ready to chat." : 'Welcome back!')
               navigate('/chat')
             } catch (err: unknown) {
               const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
