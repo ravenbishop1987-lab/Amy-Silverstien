@@ -50,7 +50,7 @@ export default function PricingModal({ onClose }: Props) {
       <div className="bg-white rounded-3xl max-w-2xl w-full p-8 shadow-card animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h2 className="font-serif text-2xl text-charcoal-900">Unlock more Sophie</h2>
+            <h2 className="font-serif text-2xl text-charcoal-900">Unlock more Amy</h2>
             <p className="text-stone-500 text-sm mt-1">Get unlimited conversations + Amy's actual voice</p>
           </div>
           <button onClick={onClose} className="text-stone-400 hover:text-stone-600 p-1">

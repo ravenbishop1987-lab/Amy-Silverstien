@@ -44,7 +44,7 @@ export default function SignupForm() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="input-base"
-          placeholder="What should Sophie call you?"
+          placeholder="What should Amy call you?"
           autoComplete="given-name"
         />
       </div>

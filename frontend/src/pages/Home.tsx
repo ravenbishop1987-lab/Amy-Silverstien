@@ -283,12 +283,12 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Sophie intro quote */}
+      {/* Amy intro quote */}
       <section className="max-w-2xl mx-auto px-6 pb-16 text-center">
         <div className="bg-white rounded-3xl p-8 shadow-soft">
           <div className="w-12 h-12 rounded-full bg-sage-400 flex items-center justify-center text-white font-semibold text-lg mx-auto mb-4">S</div>
           <p className="font-serif text-xl text-charcoal-800 leading-relaxed italic mb-3">
-            "Hey, I'm Sophie. What's your overthinking brain not letting go of tonight?"
+            "Hey, I'm Amy. What's your overthinking brain not letting go of tonight?"
           </p>
           <p className="text-xs text-stone-400">Amy's there whenever you need her</p>
         </div>

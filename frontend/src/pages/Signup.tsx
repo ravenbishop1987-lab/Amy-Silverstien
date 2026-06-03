@@ -7,7 +7,7 @@ export default function Signup() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <Link to="/">
-            <h1 className="font-serif text-3xl text-sage-600 mb-1">Sophie</h1>
+            <h1 className="font-serif text-3xl text-sage-600 mb-1">Amy</h1>
           </Link>
           <p className="text-stone-500 text-sm">Your AI companion, for free</p>
         </div>

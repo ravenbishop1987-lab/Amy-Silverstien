@@ -398,7 +398,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
         recognitionRunningRef.current = false
         setIsListening(false)
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          toast.error('Microphone permission is blocked. Allow mic access to talk with Sophie.')
+          toast.error('Microphone permission is blocked. Allow mic access to talk with Amy.')
           setVoiceCallActive(false)
         }
       }
@@ -526,7 +526,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
 
       <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
 
-        {/* Left panel — Sophie profile + gifts */}
+        {/* Left panel — Amy profile + gifts */}
         <section className="relative flex-none overflow-y-auto overflow-x-hidden lg:flex-1 bg-[repeating-linear-gradient(135deg,#fdfcfb_0,#fdfcfb_12px,#f9f7f5_12px,#f9f7f5_24px)]">
           <div className="flex flex-col px-3 py-2 sm:px-6 sm:py-6">
 
@@ -570,7 +570,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
             {/* Gift section */}
             <div className="shrink-0 mx-auto w-full max-w-3xl">
               <div className="rounded-2xl border border-stone-200 bg-white/95 shadow-soft p-2 sm:p-3">
-                <p className="text-xs text-stone-400 font-medium text-center mb-2">Send Sophie a gift with your message 💛</p>
+                <p className="text-xs text-stone-400 font-medium text-center mb-2">Send Amy a gift with your message 💛</p>
                 <div className="grid grid-cols-5 gap-1 sm:gap-2">
                   {GIFT_OPTIONS.map(({ id, label, price, Icon }) => (
                     <button
@@ -615,7 +615,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                   type="button"
                   onClick={() => setMuted((value) => !value)}
                   className="flex items-center gap-1.5 text-sm font-medium text-charcoal-900"
-                  title={muted ? 'Unmute Sophie voice' : 'Mute Sophie voice'}
+                  title={muted ? 'Unmute Amy's voice' : 'Mute Amy's voice'}
                 >
                   {muted ? <MicOff size={16} /> : <Mic size={16} />}
                   {muted ? 'Muted' : 'Mute'}
@@ -625,7 +625,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
               {/* CTA */}
               {isEmpty && (
                 <div className="mt-3 text-center hidden lg:block">
-                  <p className="text-xs text-stone-400 mb-2">Want Sophie to answer you personally?</p>
+                  <p className="text-xs text-stone-400 mb-2">Want Amy to answer you personally?</p>
                   <button
                     onClick={startNewConversation}
                     className="text-xs font-semibold text-sage-700 hover:text-sage-800 underline underline-offset-2"
@@ -648,7 +648,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                   <MessageCircle size={18} className="text-sage-500" />
                 </div>
                 <p className="font-serif text-lg text-charcoal-800 leading-snug mb-2">
-                  Ask Sophie what your overthinking brain won't let go of tonight.
+                  Ask Amy what your overthinking brain won't let go of tonight.
                 </p>
                 <p className="text-sm text-stone-400 leading-relaxed max-w-[280px]">
                   She can help with ADHD attachment, dating anxiety, reassurance, and late-night emotional spirals.
@@ -732,7 +732,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
               <span>
                 {!voiceSupported ? 'Browser speech recognition unavailable' :
                   isListening ? 'Listening…' :
-                  voiceCallActive ? 'Talk freely — Sophie will answer out loud.' :
+                  voiceCallActive ? 'Talk freely — Amy will answer out loud.' :
                   canUseVoice ? 'Premium voice enabled' : 'Free tier · 3 chats/day'}
               </span>
               <button
