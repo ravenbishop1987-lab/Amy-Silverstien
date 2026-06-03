@@ -615,7 +615,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                   type="button"
                   onClick={() => setMuted((value) => !value)}
                   className="flex items-center gap-1.5 text-sm font-medium text-charcoal-900"
-                  title={muted ? 'Unmute Amy's voice' : 'Mute Amy's voice'}
+                  title={muted ? "Unmute Amy's voice" : "Mute Amy's voice"}
                 >
                   {muted ? <MicOff size={16} /> : <Mic size={16} />}
                   {muted ? 'Muted' : 'Mute'}
