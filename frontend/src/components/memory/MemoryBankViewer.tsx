@@ -61,7 +61,7 @@ export default function MemoryBankViewer() {
       {!hasAnyMemory && (
         <div className="text-center py-12">
           <div className="text-4xl mb-3">🧠</div>
-          <p className="text-stone-500">Amy doesn't know much about you yet. Start a conversation!</p>
+          <p className="text-stone-500">Sophie doesn't know much about you yet. Start a conversation!</p>
         </div>
       )}
 
@@ -136,7 +136,7 @@ export default function MemoryBankViewer() {
 
       {/* Memory Extracts */}
       {data.memory_extracts.length > 0 && (
-        <MemorySection title="What Amy Remembers" icon={Trophy} iconColor="text-sage-600" bg="bg-sage-100">
+        <MemorySection title="What Sophie Remembers" icon={Trophy} iconColor="text-sage-600" bg="bg-sage-100">
           {data.memory_extracts.slice(0, 20).map((m: MemoryExtract) => (
             <MemoryCard
               key={m.memory_id}
@@ -151,7 +151,7 @@ export default function MemoryBankViewer() {
       )}
 
       {(data.relationship_entities?.length || 0) > 0 && (
-        <MemorySection title="People Amy Remembers" icon={UserRound} iconColor="text-blush-400" bg="bg-blush-100">
+        <MemorySection title="People Sophie Remembers" icon={UserRound} iconColor="text-blush-400" bg="bg-blush-100">
           {data.relationship_entities.slice(0, 20).map((p: RelationshipEntity) => (
             <MemoryCard
               key={p.person_id}

@@ -15,7 +15,7 @@ export default function MessageBubble({ message, onPlayVoice, canPlayVoice }: Pr
   if (isAmy) {
     return (
       <div className="flex items-end gap-3 animate-slide-up">
-        {/* Amy avatar */}
+        {/* Sophie avatar */}
         <div className="w-8 h-8 rounded-full bg-sage-400 flex items-center justify-center text-white text-xs font-semibold shrink-0 mb-1">
           S
         </div>
@@ -29,7 +29,7 @@ export default function MessageBubble({ message, onPlayVoice, canPlayVoice }: Pr
               <button
                 onClick={() => onPlayVoice(message.content)}
                 className="text-stone-400 hover:text-sage-500 transition-colors"
-                title="Play as Amy's voice"
+                title="Play as Sophie's voice"
               >
                 <Volume2 size={13} />
               </button>

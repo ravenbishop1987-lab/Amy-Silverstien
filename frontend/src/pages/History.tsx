@@ -28,7 +28,7 @@ export default function History() {
       <div className="max-w-2xl mx-auto">
         <div className="mb-8">
           <h1 className="font-serif text-2xl text-charcoal-900">Conversation History</h1>
-          <p className="text-sm text-stone-500 mt-1">All your past chats with Amy</p>
+          <p className="text-sm text-stone-500 mt-1">All your past chats with Sophie</p>
         </div>
 
         {isLoading && (
@@ -42,7 +42,7 @@ export default function History() {
             <MessageCircle size={40} className="text-stone-200 mx-auto mb-3" />
             <p className="text-stone-500">No conversations yet.</p>
             <Link to="/chat" className="text-sage-600 text-sm hover:underline mt-1 block">
-              Start your first chat with Amy →
+              Start your first chat with Sophie →
             </Link>
           </div>
         )}

@@ -59,7 +59,7 @@ export default function Settings() {
     mutationFn: (blob: Blob) => voiceApi.enrollVoice(blob),
     onSuccess: (res) => {
       setEnrolledAt(res.data.enrolled_at)
-      toast.success('Voice enrolled! Amy now knows your voice.')
+      toast.success('Voice enrolled! Sophie now knows your voice.')
     },
     onError: (err: { response?: { data?: { detail?: string } } }) =>
       toast.error(err?.response?.data?.detail || 'Enrollment failed'),
@@ -184,7 +184,7 @@ export default function Settings() {
         {/* Profile */}
         <div className="card">
           <h2 className="font-medium text-charcoal-800 mb-4">Your profile</h2>
-          <p className="text-xs text-stone-400 mb-4">This helps Amy give you more personalized advice.</p>
+          <p className="text-xs text-stone-400 mb-4">This helps Sophie give you more personalized advice.</p>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -193,7 +193,7 @@ export default function Settings() {
                   value={profileForm.preferred_name}
                   onChange={(e) => setProfileForm({ ...profileForm, preferred_name: e.target.value })}
                   className="input-base text-sm"
-                  placeholder="What should Amy call you?"
+                  placeholder="What should Sophie call you?"
                 />
               </div>
               <div>
@@ -278,7 +278,7 @@ export default function Settings() {
         {/* Widget Embedding */}
         <div className="card">
           <h2 className="font-medium text-charcoal-800 mb-1">Embed on your website</h2>
-          <p className="text-xs text-stone-400 mb-4">Add Amy as a chat widget to any site.</p>
+          <p className="text-xs text-stone-400 mb-4">Add Sophie as a chat widget to any site.</p>
           <div className="flex gap-2">
             <input
               value={embedDomain}
@@ -315,7 +315,7 @@ export default function Settings() {
         <div className="card">
           <h2 className="font-medium text-charcoal-800 mb-1">Voice identity</h2>
           <p className="text-xs text-stone-400 mb-4">
-            Train Amy to recognize your voice. Record a 10-second sample — she'll know it's you every time.
+            Train Sophie to recognize your voice. Record a 10-second sample — she'll know it's you every time.
           </p>
 
           {enrolledAt ? (

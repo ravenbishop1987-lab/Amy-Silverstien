@@ -19,7 +19,7 @@ export default function Memory() {
           <div>
             <h1 className="font-serif text-2xl text-charcoal-900">Memory Bank</h1>
             <p className="text-sm text-stone-500 mt-1">
-              Everything Amy knows about you — fully editable
+              Everything Sophie knows about you — fully editable
             </p>
           </div>
           <div className="flex gap-2">
@@ -110,7 +110,7 @@ function AddSensitivityForm({ onDone, onCancel }: { onDone: () => void; onCancel
       <div className="space-y-3">
         <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Topic (e.g. abandonment, trust)" className="input-base" />
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Why is this sensitive for you?" className="input-base h-20 resize-none" />
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How should Amy handle this? (optional)" className="input-base h-16 resize-none" />
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How should Sophie handle this? (optional)" className="input-base h-16 resize-none" />
         <button onClick={() => mutation.mutate()} disabled={!topic.trim() || !description.trim() || mutation.isPending} className="btn-primary w-full">
           {mutation.isPending ? 'Saving...' : 'Add sensitivity'}
         </button>

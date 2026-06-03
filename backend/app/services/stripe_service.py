@@ -108,8 +108,8 @@ class StripeService:
                     "currency": "usd",
                     "unit_amount": gift["amount_cents"],
                     "product_data": {
-                        "name": f"Amy gift: {gift['label']}",
-                        "description": "A paid gift with a personal message for Amy.",
+                        "name": f"Sophie gift: {gift['label']}",
+                        "description": "A paid gift with a personal message for Sophie.",
                     },
                 },
                 "quantity": 1,
@@ -159,7 +159,7 @@ class StripeService:
             await supa.table("conversations").insert({
                 "conversation_id": conversation_id,
                 "user_id": uid,
-                "title": f"{gift['label']} for Amy",
+                "title": f"{gift['label']} for Sophie",
                 "messages": [],
                 "topics_discussed": [],
                 "key_insights": [],

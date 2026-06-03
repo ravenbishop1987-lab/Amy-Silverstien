@@ -4,7 +4,14 @@
       "Bash(git commit *)",
       "Bash(git checkout *)",
       "Bash(git reset *)",
-      "Bash(git stash *)"
+      "Bash(git stash *)",
+      "Bash(git show *)",
+      "Read(//tmp/**)",
+      "Bash(cp /tmp/sophie_claude_service.py \"c:\\\\Users\\\\redee\\\\Desktop\\\\AMY Chatbot\\\\backend\\\\app\\\\services\\\\claude_service.py\")",
+      "Bash(python3 -)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
     ]
   }
 }
