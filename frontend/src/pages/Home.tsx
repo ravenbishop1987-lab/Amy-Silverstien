@@ -255,7 +255,7 @@ export default function Home() {
               ✨ The girl who gets it
             </div>
             <h2 className="font-serif text-5xl md:text-6xl text-charcoal-900 leading-tight mb-6">
-              The voice that makes your<br className="hidden md:block" /> nervous system feel safe
+              The voice that makes your nervous system feel safe
             </h2>
             <p className="text-stone-500 text-lg leading-relaxed max-w-xl mb-8">
               Sophie is warm, intense, and deeply real. She remembers your story,
