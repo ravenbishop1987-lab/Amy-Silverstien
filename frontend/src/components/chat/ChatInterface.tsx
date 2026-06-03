@@ -713,7 +713,7 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                 value={input}
                 onChange={handleTextareaChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Talk to Amy…"
+                placeholder="Talk to Sophie…"
                 rows={1}
                 className={`flex-1 resize-none outline-none text-charcoal-800 placeholder-stone-400 leading-relaxed px-1 py-3 ${creatorMode ? 'text-base' : 'text-sm'}`}
                 disabled={isStreaming || isWaiting}
