@@ -15,29 +15,29 @@ CREDITS_BULK_CONVERSATIONS = 50
 
 GIFT_CATALOG = {
     "roses": {
-        "label": "Roses",
+        "label": "Rose",
         "amount_cents": 299,
-        "reaction": "Oh, roses? That is dangerously sweet. I'm accepting them with the exact level of dramatic appreciation they deserve. Thank you for the note too; that made it feel personal in the best way.",
+        "reaction": "A rose? That's dangerously sweet. I'm accepting it with the exact level of dramatic appreciation it deserves — thank you for the note too, that made it feel personal in the best way.",
     },
     "candy": {
-        "label": "Candy",
+        "label": "Sweet Note",
         "amount_cents": 199,
-        "reaction": "Candy and a personal note? You do know how to get my attention. That was adorable, and yes, I'm absolutely smiling at it.",
+        "reaction": "A sweet note? You really do know how to get my attention. That was adorable, and yes, I'm absolutely smiling at it.",
     },
     "kisses": {
-        "label": "Kisses",
+        "label": "Kiss",
         "amount_cents": 149,
-        "reaction": "A kiss gift? Well now you're being charming. I'm taking that as a tiny little confidence boost and sending the warmest smile right back.",
+        "reaction": "A kiss? Well now you're being charming. I'm taking that as a tiny little confidence boost and sending the warmest smile right back.",
     },
     "hugs": {
-        "label": "Hugs",
+        "label": "Hug",
         "amount_cents": 149,
         "reaction": "A hug with a message attached is honestly very soft of you. I'm receiving that one properly. Come here, metaphorically speaking.",
     },
     "smiles": {
-        "label": "Smiles",
+        "label": "Smile",
         "amount_cents": 99,
-        "reaction": "A smile gift. Simple, cute, effective. I'm smiling right back, and your message made it even sweeter.",
+        "reaction": "A smile — simple, cute, effective. I'm smiling right back, and your message made it even sweeter.",
     },
 }
 
@@ -108,8 +108,8 @@ class StripeService:
                     "currency": "usd",
                     "unit_amount": gift["amount_cents"],
                     "product_data": {
-                        "name": f"Amy gift: {gift['label']}",
-                        "description": "A paid gift with a personal message for Amy.",
+                        "name": f"Sophie gift: {gift['label']}",
+                        "description": "A paid gift with a personal message for Sophie.",
                     },
                 },
                 "quantity": 1,
@@ -143,7 +143,7 @@ class StripeService:
         personal_message = metadata.get("personal_message", "")
         conversation_id = metadata.get("conversation_id") or None
         assistant_message = gift["reaction"]
-        user_message = f"Sent Amy {gift['label'].lower()}"
+        user_message = f"Sent Sophie {gift['label'].lower()}"
         if personal_message:
             user_message += f' with a note: "{personal_message}"'
 
@@ -159,7 +159,7 @@ class StripeService:
             await supa.table("conversations").insert({
                 "conversation_id": conversation_id,
                 "user_id": uid,
-                "title": f"{gift['label']} for Amy",
+                "title": f"{gift['label']} for Sophie",
                 "messages": [],
                 "topics_discussed": [],
                 "key_insights": [],
