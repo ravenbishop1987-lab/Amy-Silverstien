@@ -195,12 +195,26 @@ async def register(data: UserCreate, supa: AsyncClient = Depends(get_supabase)):
         user_id = str(uuid.uuid4())
         logger.info(f"[register] inserting user {user_id}")
 
+        referrer_source = "Direct"
+        referrer_slug = None
+        referrer_title = None
+        if data.referrer_video_slug:
+            referrer_source = "YouTube"
+            referrer_slug = data.referrer_video_slug.lower().strip()
+            referrer_title = data.referrer_video_title or referrer_slug
+
+        user_row: dict = {
+            "user_id": user_id,
+            "email": data.email,
+            "password_hash": hash_password(data.password),
+            "referrer_source": referrer_source,
+        }
+        if referrer_slug:
+            user_row["referrer_video_slug"] = referrer_slug
+            user_row["referrer_video_title"] = referrer_title
+
         try:
-            await supa.table("users").insert({
-                "user_id": user_id,
-                "email": data.email,
-                "password_hash": hash_password(data.password),
-            }).execute()
+            await supa.table("users").insert(user_row).execute()
             logger.info("[register] users row created")
         except Exception as exc:
             logger.exception(f"[register] users insert failed for {data.email}: {type(exc).__name__}: {exc}")

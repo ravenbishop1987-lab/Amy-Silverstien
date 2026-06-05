@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { authApi } from '@/lib/api'
+import { authApi, referralApi } from '@/lib/api'
+import { getStoredReferral, clearStoredReferral } from '@/pages/YouTubeReferral'
 import { useAuthStore } from '@/stores/auth'
 
 declare global {
@@ -88,6 +89,10 @@ export default function GoogleAuthButton({ mode }: Props) {
                 profile: null,
               })
               toast.success(mode === 'signup' ? "Let's go! Sophie's ready to chat." : 'Welcome back!')
+              const ref = getStoredReferral()
+              if (ref) {
+                referralApi.attributeReferral(ref.slug, ref.title).then(() => clearStoredReferral()).catch(() => {})
+              }
               navigate('/chat')
             } catch (err: unknown) {
               const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail

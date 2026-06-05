@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { authApi } from '@/lib/api'
+import { getStoredReferral, clearStoredReferral } from '@/pages/YouTubeReferral'
 import { useAuthStore } from '@/stores/auth'
 
 export default function SignupForm() {
@@ -16,7 +17,15 @@ export default function SignupForm() {
     e.preventDefault()
     setLoading(true)
     try {
-      const { data } = await authApi.register(email, password, name || undefined)
+      const referral = getStoredReferral()
+      const { data } = await authApi.register(
+        email,
+        password,
+        name || undefined,
+        referral?.slug ?? null,
+        referral?.title ?? null,
+      )
+      if (referral) clearStoredReferral()
       setAuth(data.access_token, {
         user_id: data.user_id,
         email: data.email,

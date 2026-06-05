@@ -8,7 +8,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.config import settings
 from app.database import init_supabase
-from app.routers import auth, conversations, memory, voice, stripe, embed, admin
+from app.routers import auth, conversations, memory, voice, stripe, embed, admin, referral
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -118,6 +118,7 @@ app.include_router(voice.router)
 app.include_router(stripe.router)
 app.include_router(embed.router)
 app.include_router(admin.router)
+app.include_router(referral.router)
 
 
 @app.get("/health")

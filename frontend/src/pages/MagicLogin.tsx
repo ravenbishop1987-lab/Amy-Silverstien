@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { authApi } from '@/lib/api'
+import { authApi, referralApi } from '@/lib/api'
+import { getStoredReferral, clearStoredReferral } from '@/pages/YouTubeReferral'
 import { useAuthStore } from '@/stores/auth'
 
 export default function MagicLogin() {
@@ -24,6 +25,8 @@ export default function MagicLogin() {
             profile: null,
           })
           toast.success('Signed in')
+          const ref = getStoredReferral()
+          if (ref) referralApi.attributeReferral(ref.slug, ref.title).then(() => clearStoredReferral()).catch(() => {})
           navigate('/chat', { replace: true })
         })
         .catch((err: unknown) => {
@@ -50,6 +53,8 @@ export default function MagicLogin() {
           profile: null,
         })
         toast.success('Signed in')
+        const ref2 = getStoredReferral()
+        if (ref2) referralApi.attributeReferral(ref2.slug, ref2.title).then(() => clearStoredReferral()).catch(() => {})
         navigate('/chat', { replace: true })
       })
       .catch((err: unknown) => {

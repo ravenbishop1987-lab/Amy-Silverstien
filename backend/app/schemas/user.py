@@ -9,6 +9,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
     preferred_name: Optional[str] = None
+    referrer_video_slug: Optional[str] = None
+    referrer_video_title: Optional[str] = None
 
 
 class UserLogin(BaseModel):

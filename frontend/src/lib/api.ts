@@ -32,8 +32,14 @@ api.interceptors.response.use(
 
 // Auth
 export const authApi = {
-  register: (email: string, password: string, preferred_name?: string) =>
-    api.post('/auth/register', { email, password, preferred_name }),
+  register: (
+    email: string,
+    password: string,
+    preferred_name?: string,
+    referrer_video_slug?: string | null,
+    referrer_video_title?: string | null,
+  ) =>
+    api.post('/auth/register', { email, password, preferred_name, referrer_video_slug, referrer_video_title }),
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }),
   googleLogin: (credential: string) =>
@@ -140,6 +146,18 @@ export const adminApi = {
     api.get('/admin/export/moderation-report', { params: { days }, responseType: 'blob' }),
   exportConversation: (id: string) =>
     api.get(`/admin/export/conversation/${id}`, { responseType: 'blob' }),
+}
+
+// Referral
+export const referralApi = {
+  logClick: (video_slug: string, video_title?: string, referer?: string) =>
+    api.post('/referral/click', { video_slug, video_title, referer, user_agent: navigator.userAgent }),
+  attributeReferral: (video_slug: string, video_title: string) =>
+    api.post('/referral/attribute', { video_slug, video_title }),
+  getVideoMap: () => api.get<Record<string, string>>('/referral/video-map'),
+  adminStats: () => api.get('/admin/referral/stats'),
+  adminVideos: () => api.get('/admin/referral/videos'),
+  adminTrends: (days?: number) => api.get('/admin/referral/trends', { params: { days } }),
 }
 
 // Embed

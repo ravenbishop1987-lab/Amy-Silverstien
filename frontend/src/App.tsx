@@ -11,6 +11,7 @@ import Memory from '@/pages/Memory'
 import History from '@/pages/History'
 import Settings from '@/pages/Settings'
 import Admin from '@/pages/Admin'
+import YouTubeReferral from '@/pages/YouTubeReferral'
 import Layout from '@/components/ui/Layout'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -59,6 +60,7 @@ export default function App() {
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         </Route>
         <Route path="/admin" element={<Admin />} />
+        <Route path="/yt/:slug" element={<YouTubeReferral />} />
       </Routes>
     </BrowserRouter>
   )

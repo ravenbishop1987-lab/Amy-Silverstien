@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/auth'
-import { adminApi } from '@/lib/api'
+import { adminApi, referralApi } from '@/lib/api'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
 import {
   Users, MessageCircle, AlertTriangle, Crown, Shield,
   RefreshCw, Eye, Ban, Trash2, CheckCircle,
-  TrendingUp, Activity, Clock, Flag, DollarSign, Download,
+  TrendingUp, Activity, Clock, Flag, DollarSign, Download, Youtube,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -22,7 +22,7 @@ function downloadBlob(blob: Blob, filename: string) {
 
 const ADMIN_EMAIL = 'ravenbishop1987@gmail.com'
 
-type Tab = 'overview' | 'conversations' | 'users' | 'moderation' | 'revenue'
+type Tab = 'overview' | 'conversations' | 'users' | 'moderation' | 'revenue' | 'referral'
 
 interface Metrics {
   users: { total: number; free: number; credits: number; premium: number; blocked: number; new_today: number; new_week: number; new_month: number }
@@ -695,6 +695,144 @@ function RevenueTab() {
   )
 }
 
+// ── Referral ──────────────────────────────────────────────────────────────────
+
+function ReferralTab() {
+  const [stats, setStats] = useState<any | null>(null)
+  const [videos, setVideos] = useState<any[]>([])
+  const [trends, setTrends] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [sRes, vRes, tRes] = await Promise.all([
+        referralApi.adminStats(),
+        referralApi.adminVideos(),
+        referralApi.adminTrends(30),
+      ])
+      setStats(sRes.data)
+      setVideos(vRes.data)
+      setTrends(tRes.data)
+    } catch { toast.error('Failed to load referral data') }
+    finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  if (loading) return <p className="text-stone-400 text-sm">Loading referral data…</p>
+
+  const topDay = trends.reduce((best, d) => d.clicks > (best?.clicks ?? 0) ? d : best, null)
+
+  return (
+    <div className="space-y-8">
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <KpiCard icon={Youtube} label="Total Clicks" value={stats?.total_clicks ?? 0} color="red" />
+        <KpiCard icon={Users} label="YT Signups" value={stats?.total_signups ?? 0} sub={`+${stats?.new_signups_this_week ?? 0} this week`} />
+        <KpiCard icon={Crown} label="YT Premium" value={stats?.total_premium_from_yt ?? 0} color="amber" />
+        <KpiCard icon={TrendingUp} label="Conv. Rate" value={`${stats?.conversion_rate ?? 0}%`} sub="signups → premium" color="sage" />
+        <KpiCard icon={DollarSign} label="MRR from YT" value={`$${stats?.mrr_from_yt ?? 0}`} color="sage" />
+        <KpiCard icon={Activity} label="Best Day" value={topDay ? topDay.clicks : '—'} sub={topDay?.date} />
+      </div>
+
+      {/* Per-video table */}
+      {videos.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Videos ranked by revenue</h3>
+            <button onClick={load} className="btn-ghost text-sm flex items-center gap-1"><RefreshCw size={12} /> Refresh</button>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-stone-200">
+            <table className="w-full text-sm">
+              <thead className="bg-stone-50 text-stone-500 text-xs uppercase tracking-wide">
+                <tr>
+                  {['Video', 'Clicks', 'Signups', 'Click→Signup', 'Premium', 'Conv%', 'MRR'].map(h => (
+                    <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {videos.map((v: any) => (
+                  <tr key={v.video_slug} className="hover:bg-stone-50">
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-charcoal-800 max-w-[220px] truncate">{v.video_title}</p>
+                      <p className="text-[11px] text-stone-400 font-mono">/yt/{v.video_slug}</p>
+                    </td>
+                    <td className="px-4 py-3 text-stone-600">{v.clicks}</td>
+                    <td className="px-4 py-3 text-stone-600">{v.signups}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        v.click_to_signup_rate >= 20 ? 'bg-sage-100 text-sage-700' : 'bg-stone-100 text-stone-600'
+                      }`}>{v.click_to_signup_rate}%</span>
+                    </td>
+                    <td className="px-4 py-3 text-stone-600">{v.premium_subs}</td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        v.conversion_rate >= 30 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'
+                      }`}>{v.conversion_rate}%</span>
+                    </td>
+                    <td className="px-4 py-3 font-semibold text-sage-700">${v.mrr}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 30-day sparkline (text table) */}
+      {trends.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-4">Last 30 days — clicks &amp; signups</h3>
+          <div className="bg-white rounded-2xl p-5 shadow-soft overflow-x-auto">
+            <div className="flex items-end gap-1 h-24 min-w-[600px]">
+              {trends.map((d: any) => {
+                const maxClicks = Math.max(...trends.map((t: any) => t.clicks), 1)
+                const heightPct = Math.round((d.clicks / maxClicks) * 100)
+                return (
+                  <div key={d.date} className="flex-1 flex flex-col items-center gap-0.5 group relative">
+                    <div
+                      className="w-full bg-red-200 hover:bg-red-400 transition-colors rounded-sm cursor-default"
+                      style={{ height: `${Math.max(heightPct, 2)}%` }}
+                      title={`${d.date}: ${d.clicks} clicks, ${d.signups} signups`}
+                    />
+                    {d.signups > 0 && (
+                      <div className="absolute -top-4 w-full flex justify-center">
+                        <span className="text-[9px] font-bold text-sage-600">+{d.signups}</span>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <div className="flex justify-between mt-2 text-[10px] text-stone-400">
+              <span>{trends[0]?.date}</span>
+              <span className="text-xs text-stone-500">Red = clicks · Green numbers = signups</span>
+              <span>{trends[trends.length - 1]?.date}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pinned comment helper */}
+      <div className="bg-stone-50 rounded-2xl p-5 border border-stone-200">
+        <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">Pinned comment URLs</h3>
+        <div className="space-y-2">
+          {videos.slice(0, 5).map((v: any) => (
+            <div key={v.video_slug} className="flex items-center gap-3 text-sm">
+              <span className="text-stone-500 min-w-[140px] truncate">{v.video_title.split(' ').slice(0, 4).join(' ')}…</span>
+              <code className="text-xs bg-white border border-stone-200 rounded px-2 py-0.5 text-sage-700 select-all">
+                sophieparker.online/yt/{v.video_slug}
+              </code>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main Admin Page ───────────────────────────────────────────────────────────
 
 export default function Admin() {
@@ -729,6 +867,7 @@ export default function Admin() {
   const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
     { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'revenue', label: 'Revenue', icon: DollarSign },
+    { id: 'referral', label: 'Referral', icon: Youtube },
     { id: 'conversations', label: 'Conversations', icon: MessageCircle },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'moderation', label: 'Moderation', icon: Shield },
@@ -776,6 +915,7 @@ export default function Admin() {
         {/* Tab content */}
         {tab === 'overview' && <Overview metrics={metrics} />}
         {tab === 'revenue' && <RevenueTab />}
+        {tab === 'referral' && <ReferralTab />}
         {tab === 'conversations' && <ConversationsTab />}
         {tab === 'users' && <UsersTab />}
         {tab === 'moderation' && <ModerationTab />}
