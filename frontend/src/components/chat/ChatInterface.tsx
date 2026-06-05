@@ -561,8 +561,8 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
                   <div className="amy-mouth" aria-hidden="true" />
                   <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 bg-gradient-to-t from-black/70 via-black/20 to-transparent">
                     <p className={`text-white font-semibold leading-tight ${creatorMode ? 'text-lg' : ''}`}>Sophie Parker</p>
-                    <p className="text-white/70 text-xs mt-0.5">Age 26 · Nashville</p>
-                    <p className="text-white/50 text-[10px] mt-0.5 hidden sm:block">Flirty ADHD emotional support</p>
+                    <p className="text-white/70 text-xs mt-0.5">AI Companion</p>
+                    <p className="text-white/50 text-[10px] mt-0.5 hidden sm:block">Comfort for ADHD minds, overthinkers, and anxious attachment</p>
                   </div>
                 </div>
 
