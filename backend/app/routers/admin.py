@@ -1,6 +1,8 @@
+import io
 from datetime import datetime, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from supabase import AsyncClient
 from app.database import get_supabase
 from app.models.user import UserRecord
@@ -525,3 +527,186 @@ async def resolve_flag(
     }).eq("flag_id", flag_id).execute()
 
     return {"status": "resolved", "flag_id": flag_id}
+
+
+# ── PDF Export ────────────────────────────────────────────────────────────────
+
+def _build_moderation_pdf(flags: list, date_label: str) -> bytes:
+    from fpdf import FPDF
+
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Title
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.cell(0, 10, "Sophie Parker — Moderation Report", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 8, f"Period: {date_label}", ln=True)
+    pdf.cell(0, 8, f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}", ln=True)
+    pdf.ln(4)
+
+    # Summary
+    t1 = sum(1 for f in flags if f.get("risk_level") == "tier1")
+    t2 = sum(1 for f in flags if f.get("risk_level") == "tier2")
+    t3 = sum(1 for f in flags if f.get("risk_level") == "tier3")
+    resolved = sum(1 for f in flags if f.get("resolved"))
+
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.cell(0, 8, "Summary", ln=True)
+    pdf.set_font("Helvetica", "", 11)
+    for label, val in [
+        ("Total flags", len(flags)),
+        ("Tier 1 (Ideation)", t1),
+        ("Tier 2 (Active self-harm)", t2),
+        ("Tier 3 (Emergency)", t3),
+        ("Resolved", resolved),
+        ("Pending review", len(flags) - resolved),
+    ]:
+        pdf.cell(0, 7, f"  {label}: {val}", ln=True)
+    pdf.ln(4)
+
+    # Detailed flags
+    pdf.set_font("Helvetica", "B", 13)
+    pdf.cell(0, 8, "Flag Details", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+
+    for f in flags:
+        tier = f.get("risk_level", "unknown").upper()
+        ts = f.get("created_at", "")[:16].replace("T", " ")
+        user = f.get("user_email", f.get("user_id", "unknown"))
+        trigger = (f.get("trigger_text") or "")[:120]
+        status = "Resolved" if f.get("resolved") else "Pending"
+        notes = (f.get("response_mode") or "")[:80]
+
+        pdf.set_fill_color(245, 245, 245)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(0, 7, f"[{tier}] {ts} — {user}", ln=True, fill=True)
+        pdf.set_font("Helvetica", "", 10)
+        if trigger:
+            # safe_encode to latin-1
+            safe = trigger.encode("latin-1", errors="replace").decode("latin-1")
+            pdf.cell(0, 6, f'  Trigger: "{safe}"', ln=True)
+        pdf.cell(0, 6, f"  Status: {status}  |  Action: {f.get('response_mode', 'safety_first')}", ln=True)
+        if notes and notes != "safety_first":
+            safe_notes = notes.encode("latin-1", errors="replace").decode("latin-1")
+            pdf.cell(0, 6, f"  Notes: {safe_notes}", ln=True)
+        pdf.ln(2)
+
+    # Footer
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.cell(0, 6, "This report is for internal use only. Retain for legal compliance.", ln=True)
+    pdf.cell(0, 6, "Crisis resources: 988 Suicide & Crisis Lifeline | Text HOME to 741741", ln=True)
+
+    return bytes(pdf.output())
+
+
+@router.get("/export/moderation-report")
+async def export_moderation_report(
+    days: int = Query(30, ge=1, le=365),
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
+):
+    _require_admin(current_user)
+
+    since = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    flags_r = await supa.table("safety_flags").select("*").gte("created_at", since).order("created_at", desc=True).execute()
+    flags = flags_r.data or []
+
+    # Enrich with emails
+    user_ids = list({f["user_id"] for f in flags if f.get("user_id")})
+    users_map: dict = {}
+    if user_ids:
+        ur = await supa.table("users").select("user_id,email").in_("user_id", user_ids).execute()
+        users_map = {u["user_id"]: u["email"] for u in (ur.data or [])}
+    for f in flags:
+        f["user_email"] = users_map.get(f.get("user_id", ""), "unknown")
+
+    import asyncio as _asyncio
+    loop = _asyncio.get_event_loop()
+    date_label = f"Last {days} days (since {since[:10]})"
+    pdf_bytes = await loop.run_in_executor(None, _build_moderation_pdf, flags, date_label)
+
+    filename = f"Sophie_Moderation_Report_{datetime.utcnow().strftime('%Y-%m-%d')}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/export/conversation/{conversation_id}")
+async def export_conversation_pdf(
+    conversation_id: str,
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
+):
+    _require_admin(current_user)
+
+    convo_r = await supa.table("conversations").select("*").eq("conversation_id", conversation_id).limit(1).execute()
+    if not convo_r.data:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    convo = convo_r.data[0]
+
+    user_r = await supa.table("users").select("email").eq("user_id", convo["user_id"]).limit(1).execute()
+    user_email = user_r.data[0]["email"] if user_r.data else "unknown"
+
+    flags_r = await supa.table("safety_flags").select("*").eq("conversation_id", conversation_id).execute()
+    flags = flags_r.data or []
+
+    from fpdf import FPDF
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, "Conversation Export — Sophie Parker", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(0, 6, f"User: {user_email}", ln=True)
+    pdf.cell(0, 6, f"Conversation ID: {conversation_id}", ln=True)
+    pdf.cell(0, 6, f"Started: {str(convo.get('date_started', ''))[:16]}", ln=True)
+    pdf.cell(0, 6, f"Safety flags: {len(flags)}", ln=True)
+    pdf.ln(4)
+
+    flagged_msg_ids = {f.get("trigger_text", "") for f in flags}
+
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Conversation Thread", ln=True)
+
+    for msg in (convo.get("messages") or []):
+        role = msg.get("role", "unknown")
+        content = (msg.get("content") or "")[:800]
+        ts = str(msg.get("timestamp", ""))[:16].replace("T", " ")
+        safe_content = content.encode("latin-1", errors="replace").decode("latin-1")
+
+        pdf.set_font("Helvetica", "B", 10)
+        label = "User" if role == "user" else "Sophie"
+        pdf.set_fill_color(230, 240, 255) if role == "user" else pdf.set_fill_color(245, 245, 245)
+        pdf.cell(0, 6, f"{label} [{ts}]", ln=True, fill=True)
+        pdf.set_font("Helvetica", "", 10)
+        pdf.multi_cell(0, 5, safe_content)
+        pdf.ln(2)
+
+    if flags:
+        pdf.ln(4)
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 8, "Moderation Flags", ln=True)
+        pdf.set_font("Helvetica", "", 10)
+        for f in flags:
+            tier = f.get("risk_level", "unknown").upper()
+            trigger = (f.get("trigger_text") or "")[:120]
+            safe_t = trigger.encode("latin-1", errors="replace").decode("latin-1")
+            pdf.cell(0, 6, f"[{tier}] Trigger: \"{safe_t}\"", ln=True)
+            pdf.cell(0, 6, f"  Status: {'Resolved' if f.get('resolved') else 'Pending'}", ln=True)
+            pdf.ln(2)
+
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.cell(0, 6, "Internal use only. Sophie Parker AI companion moderation log.", ln=True)
+
+    pdf_bytes = bytes(pdf.output())
+    filename = f"Conversation_{conversation_id[:8]}_{datetime.utcnow().strftime('%Y%m%d')}.pdf"
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

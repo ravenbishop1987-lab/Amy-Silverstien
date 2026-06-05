@@ -7,9 +7,18 @@ import toast from 'react-hot-toast'
 import {
   Users, MessageCircle, AlertTriangle, Crown, Shield,
   RefreshCw, Eye, Ban, Trash2, CheckCircle,
-  TrendingUp, Activity, Clock, Flag, DollarSign,
+  TrendingUp, Activity, Clock, Flag, DollarSign, Download,
   type LucideIcon,
 } from 'lucide-react'
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 const ADMIN_EMAIL = 'ravenbishop1987@gmail.com'
 
@@ -302,7 +311,20 @@ function ConversationsTab() {
           <div className="bg-white rounded-3xl shadow-xl max-w-2xl w-full p-6 mt-10" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-charcoal-800">{detail.title || 'Conversation'}</h3>
-              <button onClick={() => setDetail(null)} className="text-stone-400 hover:text-stone-600 text-lg">×</button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const { data } = await adminApi.exportConversation(detail.conversation_id)
+                      downloadBlob(data, `Conversation_${detail.conversation_id.slice(0,8)}.pdf`)
+                    } catch { toast.error('Export failed') }
+                  }}
+                  className="btn-ghost text-xs flex items-center gap-1"
+                >
+                  <Download size={12} /> PDF
+                </button>
+                <button onClick={() => setDetail(null)} className="text-stone-400 hover:text-stone-600 text-lg">×</button>
+              </div>
             </div>
             <p className="text-xs text-stone-400 mb-4">{detail.user_email} · {detail.user_tier}</p>
             {detail.safety_flags?.length > 0 && (
@@ -448,6 +470,16 @@ function ModerationTab() {
   const [loading, setLoading] = useState(true)
   const [showResolved, setShowResolved] = useState(false)
   const [detail, setDetail] = useState<any | null>(null)
+  const [exporting, setExporting] = useState(false)
+
+  const exportReport = async () => {
+    setExporting(true)
+    try {
+      const { data } = await adminApi.exportModerationReport(30)
+      downloadBlob(data, `Sophie_Moderation_${new Date().toISOString().slice(0, 10)}.pdf`)
+    } catch { toast.error('Export failed') }
+    finally { setExporting(false) }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -495,13 +527,16 @@ function ModerationTab() {
         <p>Tier 1: Log + crisis resources shown. Tier 2: Conversation paused + mandatory resources. Tier 3: Conversation blocked immediately. All flags require your manual review.</p>
       </div>
 
-      <div className="flex items-center gap-4 mb-5">
+      <div className="flex items-center gap-4 mb-5 flex-wrap">
         <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer">
           <input type="checkbox" checked={showResolved} onChange={e => setShowResolved(e.target.checked)} className="rounded" />
           Show resolved
         </label>
-        <button onClick={load} className="ml-auto btn-ghost text-sm flex items-center gap-1">
+        <button onClick={load} className="btn-ghost text-sm flex items-center gap-1">
           <RefreshCw size={13} /> Refresh
+        </button>
+        <button onClick={exportReport} disabled={exporting} className="ml-auto btn-ghost text-sm flex items-center gap-1">
+          <Download size={13} /> {exporting ? 'Exporting…' : 'Export PDF (30 days)'}
         </button>
       </div>
 

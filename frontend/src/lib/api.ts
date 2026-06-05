@@ -136,6 +136,10 @@ export const adminApi = {
     api.post(`/admin/moderation/flags/${flagId}/resolve`, null, { params: { notes } }),
   revenue: () => api.get('/admin/revenue'),
   revenueBreakdown: () => api.get('/admin/revenue/breakdown'),
+  exportModerationReport: (days = 30) =>
+    api.get('/admin/export/moderation-report', { params: { days }, responseType: 'blob' }),
+  exportConversation: (id: string) =>
+    api.get(`/admin/export/conversation/${id}`, { responseType: 'blob' }),
 }
 
 // Embed
