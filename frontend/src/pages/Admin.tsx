@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-const ADMIN_EMAIL = 'kevin.dill@gmail.com'
+const ADMIN_EMAIL = 'ravenbishop1987@gmail.com'
 
 type Tab = 'overview' | 'conversations' | 'users' | 'moderation' | 'revenue'
 

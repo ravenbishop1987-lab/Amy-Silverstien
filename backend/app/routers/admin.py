@@ -8,7 +8,7 @@ from app.utils.auth import get_current_user
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-ADMIN_EMAILS = {"kevin.dill@gmail.com"}
+ADMIN_EMAILS = {"ravenbishop1987@gmail.com"}
 
 
 def _require_admin(user: UserRecord):
