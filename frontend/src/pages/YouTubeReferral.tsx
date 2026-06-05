@@ -39,17 +39,13 @@ export default function YouTubeReferral() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const videoTitle = VIDEO_MAP[slug] ?? null
+    // Always store — title is cosmetic, slug is what matters for attribution
+    const videoTitle = VIDEO_MAP[slug] ?? slug
+    localStorage.setItem('referral', JSON.stringify({ slug, title: videoTitle }))
 
-    // Store referral in localStorage (last-click attribution)
-    if (videoTitle) {
-      localStorage.setItem('referral', JSON.stringify({ slug, title: videoTitle }))
-    }
+    // Fire-and-forget click log
+    referralApi.logClick(slug, VIDEO_MAP[slug] ?? undefined, document.referrer || undefined).catch(() => {})
 
-    // Fire-and-forget click log — never block the redirect on this
-    referralApi.logClick(slug, videoTitle ?? undefined, document.referrer || undefined).catch(() => {})
-
-    // Redirect immediately
     navigate('/', { replace: true })
   }, [slug, navigate])
 
