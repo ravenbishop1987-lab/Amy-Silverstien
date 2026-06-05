@@ -390,12 +390,15 @@ async def get_revenue(
         charges_month = _stripe.Charge.list(limit=100, created={"gte": month_start_ts})
         charges_today = _stripe.Charge.list(limit=100, created={"gte": today_start_ts})
         charges_all = _stripe.Charge.list(limit=100)
-        subs = _stripe.Subscription.list(status="active", limit=100)
-        return charges_month, charges_today, charges_all, subs
+        return charges_month, charges_today, charges_all, None
+
+    # Get subscriber count from Supabase (source of truth)
+    premium_r = await supa.table("users").select("*", count="exact").eq("subscription_tier", "premium").execute()
+    sub_count = premium_r.count or 0
 
     try:
         loop = asyncio.get_event_loop()
-        charges_month, charges_today, charges_all, subs = await loop.run_in_executor(None, _fetch_stripe_data)
+        charges_month, charges_today, charges_all, _ = await loop.run_in_executor(None, _fetch_stripe_data)
 
         def sum_paid(charge_list) -> float:
             return round(sum(
@@ -404,7 +407,6 @@ async def get_revenue(
                 if c.get("paid") and not c.get("refunded")
             ), 2)
 
-        sub_count = len(subs.data or [])
         recent = []
         for c in (charges_month.data or [])[:20]:
             if c.get("paid") and not c.get("refunded"):
@@ -426,8 +428,12 @@ async def get_revenue(
         }
     except Exception as e:
         return {
-            "mrr": 0, "premium_subscribers": 0, "revenue_today": 0,
-            "revenue_month": 0, "revenue_alltime": 0, "recent_transactions": [],
+            "mrr": round(sub_count * 9.99, 2),
+            "premium_subscribers": sub_count,
+            "revenue_today": 0,
+            "revenue_month": 0,
+            "revenue_alltime": 0,
+            "recent_transactions": [],
             "error": f"{type(e).__name__}: {e}",
         }
 
