@@ -135,6 +135,7 @@ export const adminApi = {
   resolveFlag: (flagId: string, notes?: string) =>
     api.post(`/admin/moderation/flags/${flagId}/resolve`, null, { params: { notes } }),
   revenue: () => api.get('/admin/revenue'),
+  revenueBreakdown: () => api.get('/admin/revenue/breakdown'),
 }
 
 // Embed

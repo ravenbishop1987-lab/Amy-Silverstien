@@ -362,6 +362,77 @@ async def get_flags(
     ]
 
 
+@router.get("/revenue/breakdown")
+async def get_revenue_breakdown(
+    current_user: UserRecord = Depends(get_current_user),
+    supa: AsyncClient = Depends(get_supabase),
+):
+    _require_admin(current_user)
+
+    # ── Subscriptions ──────────────────────────────────────
+    premium_r = await supa.table("users").select("*", count="exact").eq("subscription_tier", "premium").execute()
+    premium_count = premium_r.count or 0
+
+    # ── Credits users ──────────────────────────────────────
+    credits_r = await supa.table("users").select("*", count="exact").eq("subscription_tier", "credits").execute()
+    credits_count = credits_r.count or 0
+    # Each credits user bought the bulk pack ($2.99) at minimum
+    credits_revenue = round(credits_count * 2.99, 2)
+
+    # ── Gifts ─────────────────────────────────────────────
+    GIFT_PRICES = {
+        "rose": 2.99,
+        "sweet note": 1.99,
+        "kiss": 1.49,
+        "hug": 1.49,
+        "smile": 0.99,
+    }
+
+    # Messages with gift_session_id are gift transactions
+    convos_r = await supa.table("conversations").select("messages").execute()
+    gift_counts: dict = {k: 0 for k in GIFT_PRICES}
+    gift_total = 0.0
+
+    for convo in (convos_r.data or []):
+        for msg in (convo.get("messages") or []):
+            if not isinstance(msg, dict):
+                continue
+            if not msg.get("gift_session_id"):
+                continue
+            if msg.get("role") != "user":
+                continue
+            content = (msg.get("content") or "").lower()
+            for label, price in GIFT_PRICES.items():
+                if label in content:
+                    gift_counts[label] = gift_counts.get(label, 0) + 1
+                    gift_total += price
+                    break
+
+    gift_breakdown = [
+        {"label": label.title(), "count": count, "revenue": round(count * GIFT_PRICES[label], 2)}
+        for label, count in gift_counts.items()
+        if count > 0
+    ]
+
+    return {
+        "subscriptions": {
+            "count": premium_count,
+            "revenue": round(premium_count * 9.99, 2),
+            "mrr": round(premium_count * 9.99, 2),
+        },
+        "credits": {
+            "count": credits_count,
+            "revenue": credits_revenue,
+        },
+        "gifts": {
+            "total_revenue": round(gift_total, 2),
+            "total_count": sum(gift_counts.values()),
+            "breakdown": gift_breakdown,
+        },
+        "total_estimated_revenue": round(premium_count * 9.99 + credits_revenue + gift_total, 2),
+    }
+
+
 @router.get("/revenue")
 async def get_revenue(
     current_user: UserRecord = Depends(get_current_user),

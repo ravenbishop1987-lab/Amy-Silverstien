@@ -80,8 +80,17 @@ function FlagBadge({ tier }: { tier: string | null }) {
 // ── Overview ──────────────────────────────────────────────────────────────────
 
 function Overview({ metrics }: { metrics: Metrics | null }) {
+  const [breakdown, setBreakdown] = useState<any | null>(null)
+
+  useEffect(() => {
+    adminApi.revenueBreakdown()
+      .then(r => setBreakdown(r.data))
+      .catch(() => {})
+  }, [])
+
   if (!metrics) return <div className="text-stone-400 text-sm p-8">Loading metrics…</div>
-  const { users, conversations, revenue, safety } = metrics
+  const { users, conversations, safety } = metrics
+
   return (
     <div className="space-y-8">
       <div>
@@ -94,32 +103,92 @@ function Overview({ metrics }: { metrics: Metrics | null }) {
         </div>
       </div>
 
+      {/* Revenue breakdown */}
       <div>
-        <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-4">Revenue</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <KpiCard icon={TrendingUp} label="MRR" value={`$${revenue.mrr.toFixed(2)}`} sub="$9.99/subscriber" color="amber" />
-          <KpiCard icon={Crown} label="Subscribers" value={revenue.premium_subscribers} />
-          <div className="bg-white rounded-2xl p-5 shadow-soft col-span-2 md:col-span-1">
-            <p className="text-xs text-stone-400 mb-2">Tier breakdown</p>
-            <div className="space-y-2">
-              {[
-                { label: 'Free', count: users.free, color: 'bg-stone-300' },
-                { label: 'Credits', count: users.credits, color: 'bg-sage-400' },
-                { label: 'Premium', count: users.premium, color: 'bg-amber-400' },
-              ].map(({ label, count, color }) => (
-                <div key={label} className="flex items-center gap-2">
-                  <span className="text-xs text-stone-500 w-14">{label}</span>
-                  <div className="flex-1 bg-stone-100 rounded-full h-2 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${color}`}
-                      style={{ width: `${users.total ? Math.round((count / users.total) * 100) : 0}%` }}
-                    />
-                  </div>
-                  <span className="text-xs text-stone-500 w-6 text-right">{count}</span>
+        <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-4">Revenue breakdown</h3>
+        {breakdown ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Subscriptions */}
+            <div className="bg-white rounded-2xl p-5 shadow-soft">
+              <div className="flex items-center gap-2 mb-3">
+                <Crown size={15} className="text-amber-500" />
+                <span className="text-sm font-semibold text-charcoal-800">Premium subscriptions</span>
+              </div>
+              <p className="text-2xl font-bold text-charcoal-900">${breakdown.subscriptions.revenue.toFixed(2)}</p>
+              <p className="text-xs text-stone-400 mt-1">{breakdown.subscriptions.count} subscribers × $9.99/mo</p>
+              <div className="mt-3 pt-3 border-t border-stone-100">
+                <p className="text-xs text-stone-500">MRR <span className="font-semibold text-sage-600">${breakdown.subscriptions.mrr.toFixed(2)}</span></p>
+              </div>
+            </div>
+
+            {/* Credits */}
+            <div className="bg-white rounded-2xl p-5 shadow-soft">
+              <div className="flex items-center gap-2 mb-3">
+                <DollarSign size={15} className="text-sage-500" />
+                <span className="text-sm font-semibold text-charcoal-800">Credits purchases</span>
+              </div>
+              <p className="text-2xl font-bold text-charcoal-900">${breakdown.credits.revenue.toFixed(2)}</p>
+              <p className="text-xs text-stone-400 mt-1">{breakdown.credits.count} credits users × $2.99</p>
+              <div className="mt-3 pt-3 border-t border-stone-100">
+                <p className="text-xs text-stone-500">One-time purchases</p>
+              </div>
+            </div>
+
+            {/* Gifts */}
+            <div className="bg-white rounded-2xl p-5 shadow-soft">
+              <div className="flex items-center gap-2 mb-3">
+                <Flag size={15} className="text-rose-400" />
+                <span className="text-sm font-semibold text-charcoal-800">Gifts</span>
+              </div>
+              <p className="text-2xl font-bold text-charcoal-900">${breakdown.gifts.total_revenue.toFixed(2)}</p>
+              <p className="text-xs text-stone-400 mt-1">{breakdown.gifts.total_count} gift{breakdown.gifts.total_count !== 1 ? 's' : ''} sent</p>
+              {breakdown.gifts.breakdown.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-stone-100 space-y-1">
+                  {breakdown.gifts.breakdown.map((g: any) => (
+                    <div key={g.label} className="flex justify-between text-xs text-stone-500">
+                      <span>{g.label} ×{g.count}</span>
+                      <span className="font-medium">${g.revenue.toFixed(2)}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           </div>
+        ) : (
+          <div className="text-stone-400 text-sm">Loading breakdown…</div>
+        )}
+
+        {breakdown && (
+          <div className="mt-4 bg-charcoal-900 rounded-2xl p-5 flex items-center justify-between">
+            <div>
+              <p className="text-stone-400 text-xs mb-1">Estimated total revenue</p>
+              <p className="text-white text-xs">Subscriptions + Credits + Gifts</p>
+            </div>
+            <p className="text-2xl font-bold text-sage-400">${breakdown.total_estimated_revenue.toFixed(2)}</p>
+          </div>
+        )}
+      </div>
+
+      {/* User tier bar */}
+      <div className="bg-white rounded-2xl p-5 shadow-soft">
+        <p className="text-xs text-stone-400 mb-3">User tier breakdown</p>
+        <div className="space-y-2">
+          {[
+            { label: 'Free', count: users.free, color: 'bg-stone-300' },
+            { label: 'Credits', count: users.credits, color: 'bg-sage-400' },
+            { label: 'Premium', count: users.premium, color: 'bg-amber-400' },
+          ].map(({ label, count, color }) => (
+            <div key={label} className="flex items-center gap-3">
+              <span className="text-xs text-stone-500 w-14">{label}</span>
+              <div className="flex-1 bg-stone-100 rounded-full h-2 overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${color}`}
+                  style={{ width: `${users.total ? Math.round((count / users.total) * 100) : 0}%` }}
+                />
+              </div>
+              <span className="text-xs text-stone-500 w-6 text-right">{count}</span>
+            </div>
+          ))}
         </div>
       </div>
 
