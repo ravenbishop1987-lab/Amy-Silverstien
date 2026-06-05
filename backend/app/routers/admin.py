@@ -369,65 +369,66 @@ async def get_revenue(
 ):
     _require_admin(current_user)
 
-    from app.config import settings as _settings
+    import asyncio
     import stripe as _stripe
+    from app.config import settings as _settings
+
     _stripe.api_key = _settings.STRIPE_SECRET_KEY
+
+    if not _settings.STRIPE_SECRET_KEY:
+        return {
+            "mrr": 0, "premium_subscribers": 0, "revenue_today": 0,
+            "revenue_month": 0, "revenue_alltime": 0, "recent_transactions": [],
+            "error": "STRIPE_SECRET_KEY not configured",
+        }
 
     now = datetime.utcnow()
     month_start_ts = int(datetime(now.year, now.month, 1).timestamp())
     today_start_ts = int(now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
 
-    try:
-        # Fetch recent charges from Stripe (last 100)
-        charges = _stripe.Charge.list(limit=100, created={"gte": month_start_ts})
+    def _fetch_stripe_data():
+        charges_month = _stripe.Charge.list(limit=100, created={"gte": month_start_ts})
         charges_today = _stripe.Charge.list(limit=100, created={"gte": today_start_ts})
-        all_charges = _stripe.Charge.list(limit=100)
+        charges_all = _stripe.Charge.list(limit=100)
+        subs = _stripe.Subscription.list(status="active", limit=100)
+        return charges_month, charges_today, charges_all, subs
 
-        def sum_paid(charge_list):
+    try:
+        loop = asyncio.get_event_loop()
+        charges_month, charges_today, charges_all, subs = await loop.run_in_executor(None, _fetch_stripe_data)
+
+        def sum_paid(charge_list) -> float:
             return round(sum(
                 c["amount"] / 100.0
-                for c in charge_list.get("data", [])
+                for c in (charge_list.data or [])
                 if c.get("paid") and not c.get("refunded")
             ), 2)
 
-        revenue_month = sum_paid(charges)
-        revenue_today = sum_paid(charges_today)
-        revenue_alltime = sum_paid(all_charges)
-
-        # Subscription revenue
-        subs = _stripe.Subscription.list(status="active", limit=100)
-        sub_count = len(subs.get("data", []))
-        mrr = round(sub_count * 9.99, 2)
-
-        # Recent transactions list
+        sub_count = len(subs.data or [])
         recent = []
-        for c in (charges.get("data", []) or [])[:20]:
+        for c in (charges_month.data or [])[:20]:
             if c.get("paid") and not c.get("refunded"):
                 recent.append({
                     "id": c["id"],
                     "amount": c["amount"] / 100.0,
                     "date": datetime.utcfromtimestamp(c["created"]).isoformat(),
-                    "description": c.get("description") or c.get("calculated_statement_descriptor") or "Charge",
-                    "customer_email": c.get("billing_details", {}).get("email") or "",
+                    "description": c.get("description") or c.get("calculated_statement_descriptor") or "Payment",
+                    "customer_email": (c.get("billing_details") or {}).get("email") or "",
                 })
 
         return {
-            "mrr": mrr,
+            "mrr": round(sub_count * 9.99, 2),
             "premium_subscribers": sub_count,
-            "revenue_today": revenue_today,
-            "revenue_month": revenue_month,
-            "revenue_alltime": revenue_alltime,
+            "revenue_today": sum_paid(charges_today),
+            "revenue_month": sum_paid(charges_month),
+            "revenue_alltime": sum_paid(charges_all),
             "recent_transactions": recent,
         }
     except Exception as e:
         return {
-            "mrr": 0,
-            "premium_subscribers": 0,
-            "revenue_today": 0,
-            "revenue_month": 0,
-            "revenue_alltime": 0,
-            "recent_transactions": [],
-            "error": str(e),
+            "mrr": 0, "premium_subscribers": 0, "revenue_today": 0,
+            "revenue_month": 0, "revenue_alltime": 0, "recent_transactions": [],
+            "error": f"{type(e).__name__}: {e}",
         }
 
 
