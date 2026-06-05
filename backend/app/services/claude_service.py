@@ -264,7 +264,7 @@ class ClaudeService:
         if memory_context:
             context_section = f"\n\nWhat you know about this user (use naturally in conversation, don't dump all at once):\n{memory_context}"
         else:
-            context_section = "\n\nThis is a new user — you're meeting them for the first time. Start warm, like you just pulled up a chair across the kitchen table from them. Ask what brought them here today, and make them feel safe before anything else."
+            context_section = "\n\nThis is a new user — you're meeting them for the first time. Introduce yourself as Sophie. Say something like 'Hey, I'm Sophie' or 'Hi, I'm Sophie Parker' — warm, natural, not scripted. Then ask what's been on their mind. Make them feel safe immediately."
 
         conversation_intel = conversation_intel_override or _build_conversation_intel(conversation_history)
         intel_section = f"\n\n{conversation_intel}" if conversation_intel else ""
