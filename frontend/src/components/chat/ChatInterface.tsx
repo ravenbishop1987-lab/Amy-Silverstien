@@ -526,6 +526,14 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
           >
             🎬 {creatorMode ? 'Exit Creator' : 'Creator Mode'}
           </button>
+          {user?.email === 'ravenbishop1987@gmail.com' && (
+            <a
+              href="/admin"
+              className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-stone-50 text-stone-600 transition-colors"
+            >
+              ⚙️ Admin
+            </a>
+          )}
           <button onClick={startNewConversation} className="btn-ghost flex items-center gap-1.5 text-sm">
             <Plus size={15} />
             New chat
