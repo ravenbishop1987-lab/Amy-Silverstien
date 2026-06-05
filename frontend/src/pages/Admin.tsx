@@ -594,16 +594,17 @@ function RevenueTab() {
 // ── Main Admin Page ───────────────────────────────────────────────────────────
 
 export default function Admin() {
-  const { user } = useAuthStore()
+  const { user, isLoading } = useAuthStore()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('overview')
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [metricsLoading, setMetricsLoading] = useState(true)
 
   useEffect(() => {
+    if (isLoading) return
     if (!user) { navigate('/login'); return }
     if (user.email !== ADMIN_EMAIL) { navigate('/'); return }
-  }, [user, navigate])
+  }, [user, isLoading, navigate])
 
   useEffect(() => {
     if (!user || user.email !== ADMIN_EMAIL) return
@@ -614,6 +615,11 @@ export default function Admin() {
       .finally(() => setMetricsLoading(false))
   }, [user])
 
+  if (isLoading) return (
+    <div className="min-h-screen bg-cream-100 flex items-center justify-center">
+      <div className="typing-dots"><span /><span /><span /></div>
+    </div>
+  )
   if (!user || user.email !== ADMIN_EMAIL) return null
 
   const tabs: { id: Tab; label: string; icon: LucideIcon }[] = [
