@@ -158,6 +158,9 @@ export const referralApi = {
   adminStats: () => api.get('/admin/referral/stats'),
   adminVideos: () => api.get('/admin/referral/videos'),
   adminTrends: (days?: number) => api.get('/admin/referral/trends', { params: { days } }),
+  listSlugs: () => api.get<{ slug: string; title: string; created_at: string }[]>('/admin/referral/slugs'),
+  addSlug: (title: string, slug?: string) => api.post('/admin/referral/slugs', { title, slug }),
+  deleteSlug: (slug: string) => api.delete(`/admin/referral/slugs/${slug}`),
 }
 
 // Embed

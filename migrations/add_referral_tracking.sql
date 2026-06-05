@@ -19,3 +19,10 @@ CREATE INDEX IF NOT EXISTS idx_referral_clicks_slug ON referral_clicks(video_slu
 CREATE INDEX IF NOT EXISTS idx_referral_clicks_clicked_at ON referral_clicks(clicked_at);
 CREATE INDEX IF NOT EXISTS idx_users_referrer_source ON users(referrer_source);
 CREATE INDEX IF NOT EXISTS idx_users_referrer_slug ON users(referrer_video_slug);
+
+-- Video slug registry (managed via admin dashboard)
+CREATE TABLE IF NOT EXISTS video_slugs (
+  slug TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

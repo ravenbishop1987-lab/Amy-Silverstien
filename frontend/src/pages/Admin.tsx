@@ -697,28 +697,86 @@ function RevenueTab() {
 
 // ── Referral ──────────────────────────────────────────────────────────────────
 
+function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 60)
+}
+
 function ReferralTab() {
   const [stats, setStats] = useState<any | null>(null)
   const [videos, setVideos] = useState<any[]>([])
   const [trends, setTrends] = useState<any[]>([])
+  const [slugs, setSlugs] = useState<{ slug: string; title: string; created_at: string }[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Add video form state
+  const [newTitle, setNewTitle] = useState('')
+  const [newSlug, setNewSlug] = useState('')
+  const [slugLocked, setSlugLocked] = useState(false)
+  const [adding, setAdding] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [sRes, vRes, tRes] = await Promise.all([
+      const [sRes, vRes, tRes, slRes] = await Promise.all([
         referralApi.adminStats(),
         referralApi.adminVideos(),
         referralApi.adminTrends(30),
+        referralApi.listSlugs(),
       ])
       setStats(sRes.data)
       setVideos(vRes.data)
       setTrends(tRes.data)
+      setSlugs(slRes.data)
     } catch { toast.error('Failed to load referral data') }
     finally { setLoading(false) }
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const handleTitleChange = (val: string) => {
+    setNewTitle(val)
+    if (!slugLocked) setNewSlug(slugify(val))
+  }
+
+  const handleAddVideo = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTitle.trim()) return
+    setAdding(true)
+    try {
+      await referralApi.addSlug(newTitle.trim(), newSlug.trim() || undefined)
+      toast.success('Video added!')
+      setNewTitle('')
+      setNewSlug('')
+      setSlugLocked(false)
+      await load()
+    } catch (err: any) {
+      toast.error(err?.response?.data?.detail || 'Failed to add video')
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  const handleDelete = async (slug: string) => {
+    if (!confirm(`Remove /yt/${slug}? This won't delete click history.`)) return
+    try {
+      await referralApi.deleteSlug(slug)
+      toast.success('Removed')
+      setSlugs(prev => prev.filter(s => s.slug !== slug))
+    } catch { toast.error('Failed to remove') }
+  }
+
+  const copyUrl = (slug: string) => {
+    navigator.clipboard.writeText(`sophieparker.online/yt/${slug}`)
+    setCopied(slug)
+    setTimeout(() => setCopied(null), 2000)
+  }
 
   if (loading) return <p className="text-stone-400 text-sm">Loading referral data…</p>
 
@@ -736,13 +794,76 @@ function ReferralTab() {
         <KpiCard icon={Activity} label="Best Day" value={topDay ? topDay.clicks : '—'} sub={topDay?.date} />
       </div>
 
-      {/* Per-video table */}
+      {/* ── Video management ── */}
+      <div className="bg-white rounded-2xl p-6 shadow-soft">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-semibold text-charcoal-800">YouTube Videos</h3>
+          <button onClick={load} className="btn-ghost text-sm flex items-center gap-1"><RefreshCw size={12} /> Refresh</button>
+        </div>
+
+        {/* Add form */}
+        <form onSubmit={handleAddVideo} className="flex flex-col sm:flex-row gap-3 mb-6 pb-6 border-b border-stone-100">
+          <div className="flex-1 space-y-2">
+            <input
+              type="text"
+              value={newTitle}
+              onChange={e => handleTitleChange(e.target.value)}
+              placeholder="Video title (e.g. Sleep With Sophie Ep 1)"
+              className="input-base text-sm w-full"
+              required
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-stone-400 shrink-0">sophieparker.online/yt/</span>
+              <input
+                type="text"
+                value={newSlug}
+                onChange={e => { setNewSlug(e.target.value); setSlugLocked(true) }}
+                placeholder="auto-generated"
+                className="input-base text-xs flex-1 font-mono"
+              />
+              {slugLocked && (
+                <button type="button" onClick={() => { setNewSlug(slugify(newTitle)); setSlugLocked(false) }}
+                  className="text-xs text-stone-400 hover:text-stone-600 shrink-0">reset</button>
+              )}
+            </div>
+          </div>
+          <button type="submit" disabled={adding || !newTitle.trim()} className="btn-primary text-sm shrink-0 h-fit self-end">
+            {adding ? 'Adding…' : '+ Add video'}
+          </button>
+        </form>
+
+        {/* Video list */}
+        <div className="space-y-2">
+          {slugs.map(s => (
+            <div key={s.slug} className="flex items-center gap-3 py-2.5 px-3 rounded-xl hover:bg-stone-50 group">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-charcoal-800 truncate">{s.title}</p>
+                <p className="text-xs text-stone-400 font-mono">/yt/{s.slug}</p>
+              </div>
+              <button
+                onClick={() => copyUrl(s.slug)}
+                className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-stone-500 hover:text-sage-600 hover:border-sage-300 transition-colors shrink-0"
+                title="Copy pinned comment URL"
+              >
+                {copied === s.slug ? '✓ Copied' : 'Copy URL'}
+              </button>
+              <button
+                onClick={() => handleDelete(s.slug)}
+                className="p-1.5 rounded-lg text-stone-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                title="Remove"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+          {slugs.length === 0 && <p className="text-stone-400 text-sm text-center py-4">No videos yet.</p>}
+        </div>
+      </div>
+
+      {/* Per-video analytics table */}
       {videos.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Videos ranked by revenue</h3>
-            <button onClick={load} className="btn-ghost text-sm flex items-center gap-1"><RefreshCw size={12} /> Refresh</button>
-          </div>
+          <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-4">Performance by video</h3>
           <div className="overflow-x-auto rounded-2xl border border-stone-200">
             <table className="w-full text-sm">
               <thead className="bg-stone-50 text-stone-500 text-xs uppercase tracking-wide">
@@ -762,15 +883,15 @@ function ReferralTab() {
                     <td className="px-4 py-3 text-stone-600">{v.clicks}</td>
                     <td className="px-4 py-3 text-stone-600">{v.signups}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        v.click_to_signup_rate >= 20 ? 'bg-sage-100 text-sage-700' : 'bg-stone-100 text-stone-600'
-                      }`}>{v.click_to_signup_rate}%</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${v.click_to_signup_rate >= 20 ? 'bg-sage-100 text-sage-700' : 'bg-stone-100 text-stone-600'}`}>
+                        {v.click_to_signup_rate}%
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-stone-600">{v.premium_subs}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        v.conversion_rate >= 30 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'
-                      }`}>{v.conversion_rate}%</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${v.conversion_rate >= 30 ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'}`}>
+                        {v.conversion_rate}%
+                      </span>
                     </td>
                     <td className="px-4 py-3 font-semibold text-sage-700">${v.mrr}</td>
                   </tr>
@@ -781,7 +902,7 @@ function ReferralTab() {
         </div>
       )}
 
-      {/* 30-day sparkline (text table) */}
+      {/* 30-day chart */}
       {trends.length > 0 && (
         <div>
           <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-4">Last 30 days — clicks &amp; signups</h3>
@@ -808,27 +929,12 @@ function ReferralTab() {
             </div>
             <div className="flex justify-between mt-2 text-[10px] text-stone-400">
               <span>{trends[0]?.date}</span>
-              <span className="text-xs text-stone-500">Red = clicks · Green numbers = signups</span>
+              <span>Red = clicks · Green = signups</span>
               <span>{trends[trends.length - 1]?.date}</span>
             </div>
           </div>
         </div>
       )}
-
-      {/* Pinned comment helper */}
-      <div className="bg-stone-50 rounded-2xl p-5 border border-stone-200">
-        <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">Pinned comment URLs</h3>
-        <div className="space-y-2">
-          {videos.slice(0, 5).map((v: any) => (
-            <div key={v.video_slug} className="flex items-center gap-3 text-sm">
-              <span className="text-stone-500 min-w-[140px] truncate">{v.video_title.split(' ').slice(0, 4).join(' ')}…</span>
-              <code className="text-xs bg-white border border-stone-200 rounded px-2 py-0.5 text-sage-700 select-all">
-                sophieparker.online/yt/{v.video_slug}
-              </code>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   )
 }
