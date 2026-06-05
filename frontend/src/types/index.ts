@@ -164,12 +164,14 @@ export interface MemoryBank {
 }
 
 export interface WSMessage {
-  type: 'token' | 'done' | 'error' | 'message' | 'redirect'
+  type: 'token' | 'done' | 'error' | 'message' | 'redirect' | 'safety_warning' | 'safety_block'
   content?: string
   conversation_id?: string
   full_response?: string
   message?: string
   url?: string
+  tier?: number
+  crisis_response?: string
 }
 
 export interface SubscriptionStatus {

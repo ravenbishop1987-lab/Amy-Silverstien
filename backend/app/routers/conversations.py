@@ -13,6 +13,7 @@ from app.services.memory_service import build_memory_context, save_extracted_mem
 from app.utils.adult_filter import is_adult_language
 from app.utils.auth import get_current_user, get_current_user_ws
 from app.utils.rate_limiter import cache_delete
+from app.services.moderation_service import check_message as _check_safety
 
 _FORGET_SIGNALS = (
     "don't remember",
@@ -186,6 +187,10 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
         await websocket.send_json({"type": "error", "message": "Unauthorized"})
         await websocket.close(code=4001)
         return
+    if user.subscription_tier and str(user.subscription_tier) == "blocked":
+        await websocket.send_json({"type": "error", "message": "Your account has been suspended."})
+        await websocket.close(code=4003)
+        return
 
     conversation_id: str | None = None
 
@@ -212,6 +217,44 @@ async def websocket_chat(websocket: WebSocket, token: str = Query(...)):
                 })
                 await websocket.close(code=1008)
                 return
+
+            # Self-harm moderation check
+            safety = _check_safety(user_message)
+            if safety.tier >= 1:
+                # Log the flag
+                try:
+                    await supa.table("safety_flags").insert({
+                        "flag_id": str(uuid.uuid4()),
+                        "user_id": uid,
+                        "conversation_id": conversation_id_str,
+                        "risk_level": f"tier{safety.tier}",
+                        "trigger_text": safety.trigger[:500],
+                        "response_mode": "safety_first",
+                        "resolved": False,
+                        "created_at": datetime.utcnow().isoformat(),
+                    }).execute()
+                except Exception:
+                    pass
+
+                if safety.tier == 3:
+                    # Immediate block — send crisis message and close
+                    await websocket.send_json({
+                        "type": "safety_block",
+                        "tier": 3,
+                        "crisis_response": safety.crisis_response,
+                    })
+                    await websocket.close(code=1008)
+                    return
+                else:
+                    # Tier 1 or 2 — inject crisis response as Sophie's reply, then continue
+                    await websocket.send_json({
+                        "type": "safety_warning",
+                        "tier": safety.tier,
+                        "crisis_response": safety.crisis_response,
+                    })
+                    if safety.tier == 2:
+                        # Forced pause — don't continue to Claude
+                        continue
 
             uid = str(user.user_id)
 

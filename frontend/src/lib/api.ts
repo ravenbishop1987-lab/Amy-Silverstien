@@ -118,6 +118,25 @@ export const stripeApi = {
   status: () => api.get('/stripe/status'),
 }
 
+// Admin
+export const adminApi = {
+  metrics: () => api.get('/admin/metrics'),
+  listConversations: (params?: { skip?: number; limit?: number; flagged_only?: boolean; user_id?: string }) =>
+    api.get('/admin/conversations', { params }),
+  getConversation: (id: string) => api.get(`/admin/conversations/${id}`),
+  listUsers: (params?: { skip?: number; limit?: number; tier?: string }) =>
+    api.get('/admin/users', { params }),
+  getUser: (id: string) => api.get(`/admin/users/${id}`),
+  blockUser: (id: string) => api.post(`/admin/users/${id}/block`),
+  unblockUser: (id: string) => api.post(`/admin/users/${id}/unblock`),
+  deleteUser: (id: string) => api.delete(`/admin/users/${id}`),
+  getFlags: (params?: { skip?: number; limit?: number; resolved?: boolean; tier?: string }) =>
+    api.get('/admin/moderation/flags', { params }),
+  resolveFlag: (flagId: string, notes?: string) =>
+    api.post(`/admin/moderation/flags/${flagId}/resolve`, null, { params: { notes } }),
+  revenue: () => api.get('/admin/revenue'),
+}
+
 // Embed
 export const embedApi = {
   create: (domain: string, config?: Record<string, unknown>) =>

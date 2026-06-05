@@ -9,6 +9,7 @@ class SubscriptionTier(str, enum.Enum):
     free = "free"
     credits = "credits"
     premium = "premium"
+    blocked = "blocked"
 
 
 class AttachmentStyle(str, enum.Enum):
@@ -55,7 +56,7 @@ class UserRecord:
             user_id=UUID(str(row["user_id"])),
             email=row["email"],
             password_hash=row["password_hash"],
-            subscription_tier=SubscriptionTier(row.get("subscription_tier", "free")),
+            subscription_tier=SubscriptionTier(row.get("subscription_tier") or "free"),
             stripe_customer_id=row.get("stripe_customer_id"),
             stripe_subscription_id=row.get("stripe_subscription_id"),
             created_at=_parse_dt(row.get("created_at")),

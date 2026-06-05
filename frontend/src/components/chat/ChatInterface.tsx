@@ -288,6 +288,15 @@ export default function ChatInterface({ conversationId: initialConvoId }: Props)
         } else if (msg.type === 'redirect') {
           setShowFanvuePrompt(true)
           window.location.href = msg.url || FANVUE_URL
+        } else if (msg.type === 'safety_warning' || msg.type === 'safety_block') {
+          // Self-harm detected — inject crisis response as Sophie's message
+          setIsWaiting(false)
+          if (msg.crisis_response) {
+            finalizeStream(msg.crisis_response)
+          }
+          if (msg.type === 'safety_block') {
+            toast.error('This conversation has been paused. Please contact a crisis line immediately.', { duration: 8000 })
+          }
         }
       },
       () => setConnected(true),

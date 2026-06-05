@@ -8,7 +8,9 @@
       "Bash(git show *)",
       "Read(//tmp/**)",
       "Bash(cp /tmp/sophie_claude_service.py \"c:\\\\Users\\\\redee\\\\Desktop\\\\AMY Chatbot\\\\backend\\\\app\\\\services\\\\claude_service.py\")",
-      "Bash(python3 -)"
+      "Bash(python3 -)",
+      "Bash(find . -maxdepth 2 -type f ! -path \"*/\\\\.*\" ! -path \"*/node_modules/*\" ! -path \"*/venv/*\" ! -path \"*/__pycache__/*\")",
+      "Bash(npm run *)"
     ],
     "additionalDirectories": [
       "\\tmp"

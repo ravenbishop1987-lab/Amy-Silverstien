@@ -10,6 +10,7 @@ import Chat from '@/pages/Chat'
 import Memory from '@/pages/Memory'
 import History from '@/pages/History'
 import Settings from '@/pages/Settings'
+import Admin from '@/pages/Admin'
 import Layout from '@/components/ui/Layout'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         </Route>
+        <Route path="/admin" element={<Admin />} />
       </Routes>
     </BrowserRouter>
   )
